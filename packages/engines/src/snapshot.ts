@@ -26,8 +26,12 @@ export class SnapshotBuilder {
     const withSelectors = opts.withSelectors ?? true;
 
     // 注入辅助脚本，浏览器端裁剪遍历 DOM（比 Node 端逐节点更高效）
+    // 注意：node 模块作用域常量（PRUNE_TAGS/TEXT_TAGS/INTERACTIVE_ROLES/withSelectors 等）
+    // 在 page.evaluate 的浏览器执行上下文中不可见，且 Set 无法通过序列化保留，
+    // 因此必须作为数组参数显式传入并在浏览器端用 .includes() 判断，
+    // 否则真实浏览器中会抛 ReferenceError / TypeError（这正是单测发现不了的运行期缺陷）。
     const result = await this.page.evaluate(
-      ({ maxNodes, maxText, pruneDeep, includeHidden }) => {
+      ({ maxNodes, maxText, pruneDeep, includeHidden, withSelectors, PRUNE_TAGS, TEXT_TAGS, ATTR_WHITELIST, INTERACTIVE_TAGS, INTERACTIVE_ROLES }) => {
         const out: {
           url: string;
           title: string;
@@ -55,9 +59,9 @@ export class SnapshotBuilder {
         };
 
         const isInteractive = (el: Element): boolean => {
-          if (INTERACTIVE_TAGS.has(el.tagName)) return true;
+          if (INTERACTIVE_TAGS.includes(el.tagName)) return true;
           const role = el.getAttribute("role");
-          return !!role && INTERACTIVE_ROLES.has(role);
+          return !!role && INTERACTIVE_ROLES.includes(role);
         };
 
         const elText = (el: Element): string => {
@@ -79,7 +83,7 @@ export class SnapshotBuilder {
             truncatedNodes++;
             return null;
           }
-          if (PRUNE_TAGS.has(el.tagName)) return null;
+          if (PRUNE_TAGS.includes(el.tagName)) return null;
           if (!includeHidden && !isVisible(el)) return null;
           if (pruneDeep && depth > 25) return null;
 
@@ -89,7 +93,7 @@ export class SnapshotBuilder {
           const node: any = {
             ref: `r${refCounter.n++}`,
             tag: el.tagName.toLowerCase(),
-            text: TEXT_TAGS.has(el.tagName) ? elText(el) : "",
+            text: TEXT_TAGS.includes(el.tagName) ? elText(el) : "",
             attributes: {},
             interactive: isInteractive(el),
             depth,
@@ -133,7 +137,18 @@ export class SnapshotBuilder {
         out.root = walk(document.body, 0);
         return out;
       },
-      { maxNodes, maxText, pruneDeep: opts.pruneDeep ?? true, includeHidden: opts.includeHidden ?? false }
+      {
+        maxNodes,
+        maxText,
+        pruneDeep: opts.pruneDeep ?? true,
+        includeHidden: opts.includeHidden ?? false,
+        withSelectors,
+        PRUNE_TAGS: [...PRUNE_TAGS],
+        TEXT_TAGS: [...TEXT_TAGS],
+        ATTR_WHITELIST: [...ATTR_WHITELIST],
+        INTERACTIVE_TAGS: [...INTERACTIVE_TAGS],
+        INTERACTIVE_ROLES: [...INTERACTIVE_ROLES],
+      }
     );
 
     // 计算 Token 估算（约 4 字符/token，含结构开销）
