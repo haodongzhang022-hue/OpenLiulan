@@ -1,0 +1,29 @@
+"main":
+  push:
+    - name: build-and-test
+      docker:
+        image: node:20
+      stages:
+        - name: install
+          script: |
+            npm ci
+        - name: build
+          script: |
+            npm run build
+        - name: test
+          script: |
+            npm run test
+  pull_request:
+    - name: build-and-test
+      docker:
+        image: node:20
+      stages:
+        - name: install
+          script: |
+            npm ci
+        - name: build
+          script: |
+            npm run build
+        - name: test
+          script: |
+            npm run test

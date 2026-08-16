@@ -1,0 +1,28 @@
+{
+  "name": "@browser-ai-forge/mcp-server",
+  "version": "0.1.0",
+  "description": "统一 MCP Server：把 Forge 能力暴露为标准 MCP 工具，适配 deepseek harness / cnb.cool",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "bin": {
+    "forge-mcp": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@browser-ai-forge/core": "0.1.0",
+    "@browser-ai-forge/engines": "0.1.0",
+    "@browser-ai-forge/diagnosis": "0.1.0",
+    "@browser-ai-forge/token": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

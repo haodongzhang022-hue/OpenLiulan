@@ -1,0 +1,71 @@
+# Browser AI Forge
+
+整合 **Browser-Use**、**Stagehand**、**Chrome DevTools MCP** 与 **Playwright MCP** 四大浏览器自动化项目，构建一个**更强大、更可控、更强诊断能力**的统一 AI 浏览器控制框架。
+
+> 为 AI Agent（适配 deepseek harness 与 cnb.cool 生态）提供「精确操作 + 深度调试诊断 + 高效 Token」的一体化能力。
+
+---
+
+## 背景：为什么整合
+
+| 维度 | Browser-Use | Stagehand | Chrome DevTools MCP | 原生 Playwright MCP |
+| :--- | :--- | :--- | :--- | :--- |
+| AI 适配度 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
+| 操作精确性 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| Token 效率 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ |
+| 调试/诊断能力 | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
+| 社区活跃度 | 🔥🔥🔥🔥🔥 | 🔥🔥🔥 | 🔥🔥🔥 | 🔥 |
+| MCP 集成 | ✅ 官方 | ✅ 官方 | ✅ 官方 | ✅ 但已过时 |
+| 许可证 | MIT | MIT | Apache-2.0 | Apache-2.0 |
+
+**每个项目各有短板，整合可形成互补：**
+
+- **Browser-Use** 提供最强的 AI 语义层（自然语言动作、元素语义化、多步规划）
+- **Stagehand / Playwright** 提供最精确的底层操作（强选择器、稳定性重试）
+- **Chrome DevTools MCP** 提供 5 星调试/诊断与 5 星 Token 效率
+- **Playwright MCP** 提供成熟的浏览器协议接入（虽过时但协议仍是地基）
+
+## 整合后的能力矩阵（目标）
+
+| 能力 | 来源 | 说明 |
+| :--- | :--- | :--- |
+| 🧠 AI 语义层 | Browser-Use | 自然语言 -> 动作规划、元素语义化描述 |
+| 🎯 精确操作 | Stagehand / Playwright | 强选择器、自动等待、重试与稳定性保障 |
+| 🔍 调试诊断 | Chrome DevTools MCP | DOM/网络/控制台/性能/JS 异常全链路诊断 |
+| ⚡ Token 高效 | Chrome DevTools MCP | 精简 DOM、按需读取、结构化快照 |
+| 🔌 MCP 集成 | 全项目 | 统一 MCP Server，供 Agent / harness 调用 |
+| 🛠️ 协议层 | Playwright MCP | CDP 直连 / Playwright 驱动双引擎 |
+
+## 目录结构
+
+```
+browser-ai-forge/
+├── packages/
+│   ├── core/          # 核心调度引擎（动作编排、状态机、快照）
+│   ├── engines/       # 底层驱动适配（Playwright / CDP 双引擎）
+│   ├── diagnosis/     # 调试诊断中心（5 星能力）
+│   ├── ai-layer/      # AI 语义层（自然语言 -> 动作）
+│   ├── token/         # Token 高效提取策略
+│   └── mcp-server/    # 统一 MCP Server + deepseek/cnb 适配
+├── examples/          # 示例与快速上手
+└── docs/              # 架构设计文档
+```
+
+## 快速开始
+
+```bash
+npm install
+npm run build
+node examples/quickstart.mjs
+```
+
+## 文档
+
+- [架构设计](docs/architecture.md)
+- [调试诊断中心](docs/diagnosis.md)
+- [MCP / deepseek harness 适配](docs/mcp-integration.md)
+- [Token 策略](docs/token-strategy.md)
+
+## License
+
+MIT

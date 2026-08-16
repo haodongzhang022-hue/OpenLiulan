@@ -1,0 +1,30 @@
+{
+  "name": "browser-ai-forge",
+  "version": "0.1.0",
+  "description": "整合 Browser-Use / Stagehand / Chrome DevTools MCP / Playwright MCP 的统一 AI 浏览器控制框架，强化调试诊断能力并适配 deepseek harness 与 cnb.cool",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "vitest run",
+    "lint": "npm run lint --workspaces --if-present",
+    "dev": "node examples/quickstart.mjs"
+  },
+  "keywords": [
+    "browser-automation",
+    "ai-agent",
+    "playwright",
+    "mcp",
+    "chrome-devtools",
+    "browser-use",
+    "stagehand"
+  ],
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "license": "MIT"
+}
