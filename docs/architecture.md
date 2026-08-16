@@ -11,9 +11,9 @@ Browser AI Forge 整合了 **Browser-Use / Stagehand / Chrome DevTools MCP / Pla
 └──────────────────────┬──────────────────────────────┘
                        │ MCP / function calling
 ┌──────────────────────▼──────────────────────────────┐
-│  packages/mcp-server  —— 统一 MCP 服务 + 双适配器     │
-│    · deepseek harness 适配（函数 schema）             │
-│    · cnb.cool 适配（stdio / HTTP）                    │
+│  packages/mcp-server  —— 统一 MCP 服务 + 增强双适配器         │
+│    · deepseek harness 适配（函数 schema + 自愈 AgentLoop）     │
+│    · cnb.cool 适配（stdio / HTTP / CI-Pipeline / 知识库注入）   │
 └──────────────────────┬──────────────────────────────┘
 ┌──────────────────────▼──────────────────────────────┐
 │  packages/ai-layer    —— AI 语义层（Browser-Use 能力）│
@@ -59,6 +59,9 @@ Browser AI Forge 整合了 **Browser-Use / Stagehand / Chrome DevTools MCP / Pla
 3. **失败即诊断**：动作失败自动触发 5 星诊断采集，把「报错」升级为「可诊断的上下文」，极大提升 AI 排障效率。
 4. **Token 预算控制**：快照按 `maxNodes/maxTextLength` 裁剪，只保留可交互索引；需要详情时按 ref 增量展开。
 5. **协议无关的 MCP 内核**：`ForgeMcp` 与传输层解耦，同一套逻辑可同时服务 deepseek harness（函数调用）与 cnb.cool（stdio/HTTP）。
+6. **适配即增强（而非仅能用）**：
+   - deepseek harness：不止映射函数 schema，更提供**自愈 AgentLoop**，把 deepseek 的多步规划/思考与 Forge 的 5 星诊断闭环成自动化排障代理（失败自动诊断 → LLM 修正 → 重试；`assert` 自验收）。
+   - cnb.cool：不止提供 stdio/HTTP，更落地 **CI/Pipeline 冒烟检查**（在云端构建机启动真实浏览器验收并把截图/诊断落盘为制品）与**仓库知识库注入**（让 AI 决策带上项目语境），实现单靠裸接口做不到的端到端验收。
 
 ## 引擎选型建议
 

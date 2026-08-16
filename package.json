@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspace=@browser-ai-forge/core --workspace=@browser-ai-forge/diagnosis --workspace=@browser-ai-forge/token --workspace=@browser-ai-forge/ai-layer --workspace=@browser-ai-forge/engines --workspace=@browser-ai-forge/mcp-server",
     "test": "vitest run",
     "lint": "npm run lint --workspaces --if-present",
     "dev": "node examples/quickstart.mjs"
