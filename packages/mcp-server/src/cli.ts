@@ -8,7 +8,7 @@
  *   forge-mcp --ci-spec <json>   # CNB CI/Pipeline 冒烟检查（在云端构建机执行）
  */
 import { ForgeMcp } from "./forge-mcp.js";
-import { createCnbStdioServer, createCnbHttpServer, runCiCheck } from "./adapters/cnb.js";
+import { createCnbStdioServer, createCnbHttpServer, runCiCheck, runDebugSession } from "./adapters/cnb.js";
 import { buildHarnessFunctionSchemas } from "./adapters/harness.js";
 
 function parseArgs(argv: string[]) {
@@ -40,6 +40,24 @@ if (args["harness-schema"]) {
   // 输出 deepseek harness 的 function calling schema
   console.log(JSON.stringify(buildHarnessFunctionSchemas(mcp), null, 2));
   process.exit(0);
+}
+
+if (args["debug-session"]) {
+  // CNB 调试会话：从 JSON 文件读取配置，采集结构化调试报告
+  // 用法: forge-mcp --debug-session ./debug-session.json
+  // debug-session.json: { "goal": "...", "url": "...", "owner": "developer-ai", "reportFile": "...", "screenshot": true }
+  const specPath = args["debug-session"];
+  const fs = await import("node:fs");
+  const cfg = JSON.parse(fs.readFileSync(specPath, "utf8"));
+  const report = await runDebugSession(mcp, {
+    goal: cfg.goal ?? "浏览器调试会话",
+    url: cfg.url,
+    owner: cfg.owner ?? "developer-ai",
+    reportFile: cfg.reportFile ?? "./forge-debug-report.md",
+    screenshot: cfg.screenshot ?? true,
+  });
+  await mcp.shutdown();
+  process.exit(report.ok ? 0 : 1);
 }
 
 if (args["ci-spec"]) {

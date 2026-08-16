@@ -51,6 +51,31 @@ browser-ai-forge/
 └── docs/              # 架构设计文档
 ```
 
+## 核心亮点：自愈调试 + 自带眼睛
+
+Forge MCP 直接连接真实浏览器，**自带眼睛**——能直接观察到 DOM、控制台、网络、
+JS 异常等一手信息，不必像「开发 AI」那样隔着代码猜测。调试反馈是**可行动的**。
+
+通过 `runAgentLoop` / `runDebugSession` 提供**双调试模式**，允许用户选择调试负责方：
+
+- **`debug` 模式**：Agent 负责完整调试——自动诊断 → 自愈重试 → assert 自校验目标真实达成；
+- **`report` 模式**：Agent 只负责**控制与观察**，把结构化调试发现（`report.findings`）
+  反馈给开发 AI（CodeBuddy/cnb.cool），由开发 AI 结合代码全局视角修复——控制与诊断分离。
+
+```ts
+import { ForgeMcp, runAgentLoop } from "@browser-ai-forge/mcp-server";
+
+const mcp = new ForgeMcp({ headless: true });
+const result = await runAgentLoop(mcp, toHarnessTools(mcp), {
+  act: async (tools, history) => /* 调 deepseek 选下一步 */,
+  maxRetries: 2,          // 失败自愈重试
+  mode: "report",          // debug | report
+  goal: "排查登录页报错",
+  verify: async (turns, mcp) => /* assert 自校验目标真实达成 */,
+});
+// result.report.findings —— 结构化调试发现（供开发 AI 决策）
+```
+
 ## 快速开始
 
 ```bash

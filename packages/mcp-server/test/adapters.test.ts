@@ -1,6 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { buildKnowledgeContext, toPrComment } from "../src/adapters/cnb.js";
-import { buildHarnessFunctionSchemas, toHarnessTools } from "../src/adapters/harness.js";
+import {
+  buildKnowledgeContext,
+  toPrComment,
+  parseDiagnosisText,
+  buildSessionMarkdown,
+  runDebugSession,
+} from "../src/adapters/cnb.js";
+import {
+  buildHarnessFunctionSchemas,
+  toHarnessTools,
+  runAgentLoop,
+  extractFindings,
+  buildSelfHealContext,
+  buildDebugReport,
+  type DebugReport,
+  type DebugFinding,
+  type AgentTurn,
+  type DebugMode,
+} from "../src/adapters/harness.js";
 import { okResult, errResult } from "../src/tools.js";
 
 describe("CNB 知识库增强", () => {
@@ -38,7 +55,6 @@ describe("CNB CI 评论", () => {
 
 describe("harness 工具映射", () => {
   it("生成的 function schema 与工具集数量一致且为 OpenAI 兼容结构", () => {
-    // 构造一个假的 ForgeMcp，避免依赖真实浏览器
     const fakeMcp: any = {
       tools: [
         {
@@ -60,5 +76,241 @@ describe("harness 工具映射", () => {
     const r = errResult("未知工具");
     expect(r.ok).toBe(false);
     expect(r.isError).toBe(true);
+  });
+});
+
+describe("结构化调试发现 extractFindings", () => {
+  it("从诊断文本解析出控制台/JS/网络/性能发现", () => {
+    const text = [
+      "# 诊断结果 (存在问题)",
+      "- [console/error] 控制台有 2 条错误",
+      "建议: 控制台有 2 条错误，可能是 JS 异常或资源加载失败",
+      "- [js-exception/error] 页面抛出了 JS 未捕获异常",
+      "建议: 页面抛出了 JS 未捕获异常，检查对应堆栈",
+      "- [network/error] 网络存在 3 个失败请求",
+      "建议: 网络存在 3 个失败请求，可能是资源 404/500 或 CORS/跨域阻断",
+      "- [network/warning] 存在 1 个慢请求(>3s)",
+      "建议: 存在 1 个慢请求(>3s)，考虑检查后端接口或资源加载",
+      "- [performance/warning] TTFB 偏高: 1500ms",
+      "建议: TTFB > 1s，优先排查服务端响应与 CDN",
+    ].join("\n");
+
+    const findings = extractFindings({
+      ok: false,
+      content: [{ type: "text", text }],
+      isError: true,
+    });
+
+    expect(findings.some((f) => f.category === "console" && f.severity === "error")).toBe(true);
+    expect(findings.some((f) => f.category === "js-exception")).toBe(true);
+    expect(findings.some((f) => f.category === "network" && f.severity === "error")).toBe(true);
+    expect(findings.some((f) => f.category === "performance" && f.severity === "warning")).toBe(true);
+  });
+
+  it("成功结果无发现", () => {
+    const findings = extractFindings(okResult("一切正常"));
+    expect(findings.length).toBe(0);
+  });
+});
+
+describe("自愈上下文 buildSelfHealContext", () => {
+  it("生成可行动的诊断 feed（含原因 + 建议）", () => {
+    const ctx = buildSelfHealContext(
+      "click",
+      "未找到元素 ref=r3",
+      "# 诊断结果 (存在问题)\n- [console/error] 控制台有 1 条错误",
+      [
+        {
+          category: "console",
+          severity: "error",
+          message: "控制台有 1 条错误",
+          suggestion: "检查 JS 异常堆栈与资源加载",
+        },
+      ]
+    );
+    expect(ctx.hasFindings).toBe(true);
+    expect(ctx.text).toContain("动作失败");
+    expect(ctx.text).toContain("click");
+    expect(ctx.text).toContain("建议: 检查 JS 异常堆栈与资源加载");
+    expect(ctx.text).toContain("自愈指令");
+  });
+});
+
+describe("runAgentLoop 调试模式", () => {
+  // 构造一个假 ForgeMcp（不依赖真实浏览器）
+  function makeFakeMcp(opts: { diagText?: string } = {}) {
+    return {
+      tools: [
+        {
+          name: "observe",
+          description: "观察",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "act",
+          description: "动作",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "diagnose",
+          description: "诊断",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "close",
+          description: "关闭",
+          inputSchema: { type: "object", properties: {} },
+        },
+      ],
+      callTool: async (name: string, args: any) => {
+        if (name === "diagnose") {
+          return okResult(opts.diagText ?? "# 诊断结果 (健康)\n未发现错误，页面运行正常。");
+        }
+        if (name === "observe") {
+          return okResult("# 页面: Test\nURL: http://example.com\n## 可交互元素\n- ref=r1 <button> \"Go\"");
+        }
+        if (name === "act") {
+          // 模拟第一次点击失败，重试成功
+          return errResult("动作失败: 未找到元素");
+        }
+        if (name === "close") {
+          return okResult("浏览器已关闭");
+        }
+        return okResult("ok");
+      },
+    } as any;
+  }
+
+  it("debug 模式：失败后自动诊断并把建议注入 result", async () => {
+    const mcp = makeFakeMcp({
+      diagText: "# 诊断结果 (存在问题)\n- [console/error] 控制台有 2 条错误\n## 建议\n1. 检查 JS 异常堆栈",
+    });
+    const tools = toHarnessTools(mcp);
+
+    const result = await runAgentLoop(mcp, tools, {
+      mode: "debug" as DebugMode,
+      goal: "测试点击",
+      // 模拟：第一步失败（会触发诊断），第二步 close
+      act: async (tools, history) => {
+        if (history.length === 0) return { name: "act", args: { type: "click" } };
+        return { name: "close", args: {} };
+      },
+      maxRetries: 1,
+      autoObserve: false,
+    });
+
+    expect(result.usedDiagnosis).toBe(true);
+    expect(result.turns.length).toBeGreaterThanOrEqual(2);
+    // 第一个 act 失败后，result 被注入了自愈诊断文本
+    const firstTurn = result.turns[0];
+    expect(firstTurn.result.ok).toBe(false);
+    const content = firstTurn.result.content.map((c) => c.text).join("\n");
+    expect(content).toContain("自愈诊断");
+    expect(content).toContain("控制台有 2 条错误");
+    // debug 模式生成 report
+    expect(result.report).toBeDefined();
+    expect(result.report!.findings.length).toBeGreaterThan(0);
+  });
+
+  it("report 模式：不注入诊断到 result，但生成结构化报告", async () => {
+    const mcp = makeFakeMcp({
+      diagText: "# 诊断结果 (存在问题)\n- [network/error] 网络存在 3 个失败请求",
+    });
+    const tools = toHarnessTools(mcp);
+
+    const result = await runAgentLoop(mcp, tools, {
+      mode: "report" as DebugMode,
+      goal: "测试仅反馈",
+      act: async (tools, history) => {
+        if (history.length === 0) return { name: "act", args: { type: "click" } };
+        return { name: "close", args: {} };
+      },
+      maxRetries: 1,
+      autoObserve: false,
+    });
+
+    expect(result.mode).toBe("report");
+    // report 模式：result 不注入诊断文本
+    const firstTurn = result.turns[0];
+    const content = firstTurn.result.content.map((c) => c.text).join("\n");
+    expect(content).not.toContain("自愈诊断");
+    // 但 report.findings 结构化保存了诊断发现
+    expect(result.report).toBeDefined();
+    expect(result.report!.findings.some((f) => f.category === "network")).toBe(true);
+    expect(result.report!.markdown).toContain("调试报告");
+  });
+
+  it("verify 自校验：验证目标真实达成", async () => {
+    let verifyCalls = 0;
+    const mcp = makeFakeMcp();
+    const tools = toHarnessTools(mcp);
+
+    const result = await runAgentLoop(mcp, tools, {
+      mode: "debug",
+      goal: "验证目标",
+      act: async () => ({ name: "close", args: {} }),
+      verify: async (turns, mcp) => {
+        verifyCalls++;
+        // 模拟：第二次调用 verify 时目标真实达成
+        return verifyCalls >= 2;
+      },
+      autoObserve: false,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(verifyCalls).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("CNB 调试会话 parseDiagnosisText", () => {
+  it("解析诊断文本为结构化发现", () => {
+    const diagText = [
+      "# 诊断结果 (存在问题)",
+      "- [console/error] 控制台有 1 条错误",
+      "建议: 控制台有 1 条错误",
+      "- [network/error] 网络存在 2 个失败请求",
+      "建议: 网络存在 2 个失败请求",
+    ].join("\n");
+    const findings = parseDiagnosisText(diagText);
+    expect(findings.length).toBeGreaterThanOrEqual(2);
+    expect(findings.some((f) => f.category === "console")).toBe(true);
+    expect(findings.some((f) => f.category === "network")).toBe(true);
+  });
+
+  it("无错误时返回空数组", () => {
+    expect(parseDiagnosisText("# 诊断结果 (健康)\n未发现错误，页面运行正常。")).toEqual([]);
+  });
+});
+
+describe("buildSessionMarkdown", () => {
+  it("生成包含目标/URL/发现/快照的 markdown", () => {
+    const md = buildSessionMarkdown(
+      { goal: "排查登录页报错", url: "http://example.com/login" },
+      false,
+      [
+        {
+          category: "js-exception",
+          severity: "error",
+          message: "页面抛出了 JS 未捕获异常",
+          suggestion: "检查异常堆栈",
+        },
+      ],
+      "[登录页] http://example.com/login\n- ref=r1 <input>"
+    );
+    expect(md).toContain("排查登录页报错");
+    expect(md).toContain("js-exception");
+    expect(md).toContain("❌");
+    expect(md).toContain("页面快照");
+  });
+
+  it("健康页面生成 ✅", () => {
+    const md = buildSessionMarkdown(
+      { goal: "检查首页", url: "http://example.com" },
+      true,
+      [],
+      "[首页] http://example.com"
+    );
+    expect(md).toContain("✅");
+    expect(md).toContain("未发现明确问题");
   });
 });

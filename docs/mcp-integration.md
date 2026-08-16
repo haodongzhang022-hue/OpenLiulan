@@ -33,10 +33,18 @@ const tools = toHarnessTools(mcp);
 
 > deepseek harness 端只需把 `schemas` 传入 function calling 配置，然后在循环里调用 `tools` 即可完成「规划 → 观察 → 行动 → 诊断」闭环。
 
-### 增强：自愈 AgentLoop（发挥 deepseek 原生规划 + Forge 诊断）
+### 增强：自愈 AgentLoop + 双调试模式（自带眼睛 & 控制/诊断分离）
 
 相比仅暴露裸工具，Forge 提供**自动化排障代理** `runAgentLoop`，把 deepseek 的
-多步规划/思考能力与 Forge 的 5 星诊断闭环成「目标 → 观察 → 行动 → 失败自愈 → 再行动」：
+多步规划/思考能力与 Forge 的 5 星诊断闭环成「目标 → 观察 → 行动 → 失败自愈 → 再行动」。
+
+**核心价值：MCP 自带眼睛。** 它直接连接真实浏览器，能直接观察到 DOM、控制台、
+网络、JS 异常等一手信息——不必像「开发 AI」那样隔着代码猜测。因此它的调试反馈
+是**可行动的**，不是猜测。
+
+#### 双调试模式（`mode`）
+
+用户可指定 Agent 的角色：
 
 ```ts
 import { ForgeMcp, toHarnessTools, runAgentLoop } from "@browser-ai-forge/mcp-server";
@@ -44,21 +52,47 @@ import { ForgeMcp, toHarnessTools, runAgentLoop } from "@browser-ai-forge/mcp-se
 const mcp = new ForgeMcp({ headless: true });
 const tools = toHarnessTools(mcp);
 
-// act：由 deepseek harness 端实现的函数-calling 决策（基于 tools + 历史选下一步）
 const decision = async (tools, history) => { /* 调用 deepseek，返回 {name,args} */ };
 
+// mode: "debug" —— Agent 负责完整调试（自动诊断/自愈重试/assert 自校验）
+// mode: "report" —— Agent 只负责控制与观察，把结构化调试报告反馈给开发 AI 决策
 const result = await runAgentLoop(mcp, tools, {
   act: decision,
   maxSteps: 20,
-  maxRetries: 2, // 动作失败自动诊断并让 LLM 修正后重试
-  autoObserve: true,
+  maxRetries: 2,          // 失败自愈重试
+  autoObserve: true,       // 每步基于最新快照决策
+  mode: "report",          // debug | report
+  goal: "排查登录页报错",   // report 模式的报告标题
+  verify: async (turns, mcp) => {
+    // 可选：用 assert 自校验目标是否「真实达成」而非「自以为成功」
+    return true;
+  },
+  knowledgeContext: "仓库知识库片段...",
 });
 ```
 
 **这正是「之前做不到的」**：
-- 动作失败会**自动采集诊断**并把建议喂回给 LLM，驱动其修正定位/策略后重试（自愈）；
-- 用 `assert` 自校验目标是否**真实达成**，而非「自以为成功」；
+- `debug` 模式：动作失败会**自动采集诊断**并把「为什么失败 + 建议」喂回给 LLM，
+  驱动其修正定位/策略后重试（自愈）；
+- `report` 模式：Agent 只负责**控制与观察**，把结构化的调试报告（`report.findings` + `report.markdown`）
+  反馈给开发 AI（CodeBuddy/cnb.cool），由开发 AI 结合代码全局视角修复——控制与诊断分离；
+- 用可选 `verify` 断言自校验目标是否**真实达成**；
 - 每步决策都基于最新、Token 高效、带 ref 的页面快照（`observeContext`）。
+
+#### 结构化调试发现
+
+失败动作的原始错误会被**结构化成可行动发现**（`DebugFinding`）：
+
+```ts
+{
+  category: "console" | "network" | "js-exception" | "performance" | "dom",
+  severity: "error" | "warning" | "info",
+  message: "控制台有 2 条错误",
+  suggestion: "检查 JS 异常堆栈与资源加载，定位未捕获异常或 404/500 资源"
+}
+```
+
+这些发现既可用于驱动 debug 模式的自愈，也可作为 report 模式反馈给开发 AI 的**一手调试信息**。
 
 ## cnb.cool 适配
 
@@ -113,6 +147,37 @@ npx forge-mcp --ci-spec ./ci-spec.json
 
 代码中可直接调用 `runCiCheck`，返回 `{ok, passed, failed, report, artifacts}`，
 失败会返回非零退出码，从而让 cnb CI 的步骤失败/通过，并把结果回写为 PR 评论（`toPrComment`）。
+
+### 增强：CNB 调试会话（cnb.cool + harness + 自定义接口）
+
+`runDebugSession` 是「cnb.cool + deepseek harness + 自定义接口」的编排入口，
+解决调试问题：**让开发 AI 拿到直接观察到的、可行动的调试信息**，而不是隔着代码猜测。
+
+```ts
+import { ForgeMcp, runDebugSession } from "@browser-ai-forge/mcp-server";
+
+const mcp = new ForgeMcp({ headless: true });
+
+const report = await runDebugSession(mcp, {
+  goal: "排查登录页报错",
+  url: "https://example.com/login",
+  owner: "developer-ai",      // 交给开发 AI（CodeBuddy/cnb.cool）结合代码全局视角修复
+  // owner: "agent"           // 由本 Agent 负责完整调试
+  // owner: { channel: "pr-comment" }  // 生成可粘贴到 cnb.cool PR 的评论文本
+  // owner: { channel: "file", target: "./debug-report.md" }
+  reportFile: "./forge-debug-report.md",
+  screenshot: true,
+});
+
+// report.findings —— 结构化调试发现（供开发 AI 直接消费）
+// report.markdown  —— 可直接回写 PR/Issue 的 markdown
+```
+
+**核心价值**：允许用户选择调试的负责方——
+- `owner: "developer-ai"`：Agent 只负责**控制与观察**，反馈结构化调试发现，
+  由开发 AI（具备代码全局视角）结合代码修复 bug——「控制与诊断分离」；
+- `owner: "agent"`：由 Agent 负责完整调试（debug 模式），自动诊断/自愈/自校验；
+- 自定义 `{ channel: "pr-comment" | "file" | "webhook" }`：把报告投递到指定渠道。
 
 ### 增强：CNB 仓库知识库注入
 
