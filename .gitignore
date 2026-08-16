@@ -5,3 +5,8 @@ coverage/
 .env
 .DS_Store
 .cache/
+
+# 运行期生成的调试制品
+forge-debug-report.md
+forge-debug-screenshot.png
+forge-artifacts/

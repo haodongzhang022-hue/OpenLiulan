@@ -2,7 +2,7 @@
   push:
     - name: build-and-test
       docker:
-        image: node:20
+        image: mcr.microsoft.com/playwright:v1.62.1-noble
       stages:
         - name: install
           script: |
@@ -16,7 +16,7 @@
   pull_request:
     - name: build-and-test
       docker:
-        image: node:20
+        image: mcr.microsoft.com/playwright:v1.62.1-noble
       stages:
         - name: install
           script: |
@@ -26,4 +26,24 @@
             npm run build
         - name: test
           script: |
+            # 单测 + 真实浏览器验收（防止假装测试：
+            # 必须真实控制浏览器并断言真实 DOM 状态）
             npm run test
+  # 云端 CI 冒烟（浏览器验收）：依赖 playwright chromium，作为独立增强演示。
+  # 若需在正式 CI 启用，可放开下面块并在 install 里加 `npx playwright install chromium`。
+  # smoke:
+  #   - name: browser-smoke
+  #     docker:
+  #       image: mcr.microsoft.com/playwright:v1.40.0-focal
+  #     stages:
+  #       - name: install
+  #         script: |
+  #           npm ci
+  #           npx playwright install chromium
+  #       - name: build
+  #         script: |
+  #           npm run build
+  #       - name: smoke
+  #         script: |
+  #           node packages/mcp-server/dist/cli.js --ci-spec ./examples/ci-spec.json
+  #           # 失败返回非零退出码 → 驱动 CI 红/绿；toPrComment() 可回写 PR 评论
