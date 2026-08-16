@@ -72,6 +72,11 @@ JS 异常等一手信息，不必像「开发 AI」那样隔着代码猜测。�
 
 该引擎自动接入 `runAgentLoop` 与 `runCiCheck`，详见 [MCP/知识库/解决方案文档](docs/mcp-integration.md)。
 
+**可成长的在线方案库**：内置 playbook 之上叠加 `SolutionRepository` 持久化沉淀库——
+新错误（内置未命中）会被记录为候选，解决后 `addSolution()` 入库并跨会话持久化，
+下次同类错误直接命中。方案库文件可提交仓库/作 CI 制品导出，**解决过的问题不再依赖检索、越用越大**。
+`runCiCheck` 传 `solutionRepoFile` 即可启用。
+
 ```ts
 import { ForgeMcp, runAgentLoop } from "@browser-ai-forge/mcp-server";
 

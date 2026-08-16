@@ -276,6 +276,56 @@ const result = await runAgentLoop(mcp, tools, {
 console.log(result.solutions); // 触发的解决方案列表
 ```
 
+### 增强：可成长的在线解决方案库（不依赖检索，越用越大）
+
+内置 playbook 是静态基线；为了「系统能持续成长、上限持续提高」，引入 **`SolutionRepository`**：
+在内置 playbook 之上叠加一层**持久化的用户沉淀方案库**，实现「在线库积累解决方案」的成长闭环：
+
+- **新错误沉淀**：内置库未命中的新错误（第 2 次触发时）会被记录为 `unknownErrors` 候选，
+  供开发 AI / 用户补充方案；
+- **方案入库**：`addSolution()` 把新方案写入库文件（`solutions-repo.json`），去重后持久化；
+- **跨会话成长**：`SolutionRepository(filePath)` 加载上次沉淀的方案，下次同类错误直接命中——
+  **解决过的问题不再重复造轮子，也无需依赖外部检索**；
+- **在线库形态**：库文件可提交进仓库 / 作为 CI 制品导出（`exportSolutionRepoMarkdown`），
+  实现团队共享与版本化。
+
+```ts
+import { SolutionRepository, RepeatErrorRegistry, exportSolutionRepoMarkdown } from "@browser-ai-forge/mcp-server";
+
+const repo = new SolutionRepository("./solutions-repo.json"); // 加载已有沉淀
+const reg = new RepeatErrorRegistry();
+
+// 内置未命中的新错误 → 记为候选
+const m = repo.match(reg, "后端返回 429 too many requests");
+console.log(repo.unknownErrors); // ["generic:action-failed"]
+
+// 解决后沉淀进库（系统成长）
+repo.addSolution({
+  id: "api-rate-limit",
+  fingerprint: "api:rate-limit",
+  title: "后端接口限流（429）",
+  pattern: /429|rate.?limit|限流/i,
+  level: "guide",
+  solution: "加指数退避重试；减少并发；检查高频轮询。",
+});
+repo.persist(); // 写入 ./solutions-repo.json
+
+// 导出为 markdown（可作 PR/制品/文档 = 在线库）
+const md = exportSolutionRepoMarkdown(repo, { title: "项目解决方案库" });
+```
+
+`runCiCheck` 可通过 `solutionRepoFile` 配置启用成长库：
+
+```ts
+const result = await runCiCheck(mcp, {
+  steps, artifactDir: "./forge-artifacts", persistArtifacts: true,
+  solutionRepoFile: "./solutions-repo.json", // 启用可成长方案库
+});
+// report 中会显示「方案库: 内置 8 条 + 沉淀 N 条」
+```
+
+> 说明：真实验收测试还暴露并修复了两处缺陷——`runCiCheck` 的 `nonFatal` 默认应为 true（允许失败后继续，否则二次触发机制无法生效）；`fingerprintError` 对真实报错「无法定位元素」未正确识别为 `dom:locator-failed`（已补充正则与回归测试）。
+
 ## CDP 直连（复用 DevTools 调试通道）
 
 当需要调试**真实运行中的浏览器**时，连接其 CDP 端点：

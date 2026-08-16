@@ -5,6 +5,7 @@ import {
   parseDiagnosisText,
   buildSessionMarkdown,
   runDebugSession,
+  runCiCheck,
 } from "../src/adapters/cnb.js";
 import {
   buildHarnessFunctionSchemas,
@@ -32,6 +33,68 @@ describe("CNB 知识库增强", () => {
 
   it("无知识时返回空字符串", () => {
     expect(buildKnowledgeContext([])).toBe("");
+  });
+});
+
+describe("CNB CI 冒烟 runCiCheck（nonFatal 默认语义 + 二次触发）", () => {
+  function makeFailMcp(opts: { diagText?: string } = {}) {
+    return {
+      tools: [
+        { name: "observe", description: "观察", inputSchema: {} },
+        { name: "act", description: "动作", inputSchema: {} },
+        { name: "diagnose", description: "诊断", inputSchema: {} },
+      ],
+      callTool: async (name: string, args: any) => {
+        if (name === "diagnose")
+          return okResult(opts.diagText ?? "# 诊断结果 (健康)\n未发现错误，页面运行正常。");
+        if (name === "observe") return okResult("快照 ok");
+        if (name === "act") {
+          // 模拟真实浏览器报错：无法定位元素
+          return errResult("✗ 动作执行失败: 无法定位元素：ref=- selector=- text=按钮XYZ semantic=-. 建议调用 observe() 获取最新快照后重试");
+        }
+        return okResult("ok");
+      },
+    } as any;
+  }
+
+  it("nonFatal 默认 true：步骤失败不终止，后续步骤继续执行", async () => {
+    const mcp = makeFailMcp();
+    const result = await runCiCheck(mcp, {
+      steps: [
+        { action: "act", args: { type: "assert" } }, // 失败，但 nonFatal 默认 true 应继续
+        { action: "observe", args: {} }, // 应被执行
+        { action: "act", args: { type: "assert" } }, // 失败（同类第 2 次）
+      ],
+    });
+    // 两个 act 都执行了（第 2 个 observe 也执行）
+    expect(result.steps.length).toBe(3);
+    expect(result.steps.filter((s) => !s.ok).length).toBe(2);
+  });
+
+  it("同类错误第 2 次在 runCiCheck 中触发 dom:locator-failed 方案", async () => {
+    const mcp = makeFailMcp();
+    const result = await runCiCheck(mcp, {
+      steps: [
+        { action: "act", args: { type: "assert" } },
+        { action: "act", args: { type: "assert" } },
+      ],
+    });
+    const triggered = result.solutions?.filter((s) => s.triggered && s.fingerprint === "dom:locator-failed");
+    expect(triggered?.length).toBe(1);
+    expect(triggered![0].advice).toContain("方案推荐");
+    expect(triggered![0].advice).toContain("元素定位/点击失败");
+  });
+
+  it("显式 nonFatal:false 时失败即终止", async () => {
+    const mcp = makeFailMcp();
+    const result = await runCiCheck(mcp, {
+      steps: [
+        { action: "act", args: { type: "assert" }, nonFatal: false },
+        { action: "observe", args: {} },
+      ],
+    });
+    // 第 1 步致命失败即终止，第 2 步不执行
+    expect(result.steps.length).toBe(1);
   });
 });
 

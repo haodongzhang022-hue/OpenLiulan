@@ -21,7 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ForgeMcp } from "../forge-mcp.js";
 import type { ToolResult } from "../tools.js";
-import { RepeatErrorRegistry, matchSolution, type SolutionMatch } from "../solutions.js";
+import { RepeatErrorRegistry, matchSolution, SolutionRepository, type SolutionMatch } from "../solutions.js";
 
 /**
  * 供 cnb 端封装为独立进程的 stdio MCP 服务入口。
@@ -157,6 +157,12 @@ export interface CiCheckConfig {
   artifactDir?: string;
   /** 是否把截图等制品作为 CI artifact 保留 */
   persistArtifacts?: boolean;
+  /**
+   * 可成长解决方案库文件路径（可选）。
+   * 提供后，CI 内错误匹配使用「内置 playbook + 该持久化库」的仓库进行匹配；
+   * 未命中的新错误会被记录为候选，方案库可随 CI 沉淀/导出，实现在线库成长。
+   */
+  solutionRepoFile?: string;
 }
 
 /** 单步执行结果 */
@@ -194,7 +200,10 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
   const artifacts: string[] = [];
   const solutions: SolutionMatch[] = [];
   // CI 内启用错误自动匹配解决方案（同指纹错误 2 次才推荐）
+  // 若提供 solutionRepoFile，使用可成长的解决方案仓库（内置 + 沉淀库合并匹配）
   const registry = new RepeatErrorRegistry();
+  const repo = cfg.solutionRepoFile ? new SolutionRepository(cfg.solutionRepoFile) : undefined;
+  const useRepo = !!repo;
 
   if (cfg.persistArtifacts) {
     fs.mkdirSync(artifactDir, { recursive: true });
@@ -213,10 +222,11 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
       const diag = await mcp.callTool("diagnose", {});
       s.diagnostics = diag.content?.[0]?.text;
       // 错误自动匹配解决方案：同类问题第 2 次出现时推荐方案
-      const match = matchSolution(
-        registry,
-        `${s.diagnostics ?? ""}\n${s.summary}`
-      );
+      // 若配置了可成长方案库，用「内置 + 沉淀」仓库匹配并记录新错误候选
+      const errorText = `${s.diagnostics ?? ""}\n${s.summary}`;
+      const match = useRepo && repo
+        ? repo.match(registry, errorText)
+        : matchSolution(registry, errorText);
       if (match.triggered) {
         solutions.push(match);
         if (match.advice) s.diagnostics = `${s.diagnostics ?? ""}\n---\n${match.advice}`;
@@ -233,16 +243,26 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
     }
 
     steps.push(s);
-    if (!step.nonFatal && !s.ok) break; // 致命步骤失败即终止
+    // 非致命步骤（nonFatal 默认 true，即默认允许继续）失败不终止，
+    // 让后续步骤有机会继续（例如同类错误二次触发解决方案）。
+    if (step.nonFatal === false && !s.ok) break; // 仅当显式 nonFatal:false 才致命失败即终止
   }
 
   const passed = steps.filter((s) => s.ok).length;
   const failed = steps.filter((s) => !s.ok).length;
   const ok = failed === 0;
 
+  // 若使用可成长方案库，CI 结束后持久化沉淀的新错误候选（成长不丢失）
+  if (useRepo && repo) {
+    repo.persist();
+  }
+
   const report = [
     `# Forge CI 冒烟检查 ${ok ? "✅ 通过" : "❌ 存在失败"}`,
     `通过 ${passed} / 失败 ${failed}`,
+    ...(useRepo && repo
+      ? [`**方案库**: 内置 8 条 + 沉淀 ${repo.customCount} 条（${repo.entries.length} 条）`]
+      : []),
     ...steps.map(
       (s) => `- [${s.ok ? "✓" : "✗"}] ${s.action}: ${s.summary}${s.diagnostics ? `\n  ${s.diagnostics}` : ""}`
     ),
