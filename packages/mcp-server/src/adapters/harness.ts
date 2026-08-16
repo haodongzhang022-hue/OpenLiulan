@@ -271,6 +271,11 @@ export interface AgentLoopOptions {
   observeInContext?: boolean;
   /** 知识库上下文（CNB 仓库知识，注入决策上下文） */
   knowledgeContext?: string;
+  /**
+   * 整环超时（毫秒，默认 120_000）。防止 Agent 陷入死循环/长时间卡死。
+   * 超时后以 stopReason="timeout" 终止。
+   */
+  timeoutMs?: number;
 }
 
 /** AgentLoop 单步记录 */
@@ -284,6 +289,14 @@ export interface AgentTurn {
   /** 本步是否有诊断反馈 */
   diagnosis?: string;
 }
+
+/** AgentLoop 结束原因 */
+export type StopReason =
+  | "goal-achieved"
+  | "max-steps"
+  | "too-many-retries"
+  | "timeout"
+  | "report-handoff";
 
 /** AgentLoop 执行结果 */
 export interface AgentLoopResult {
@@ -299,6 +312,8 @@ export interface AgentLoopResult {
   usedDiagnosis: boolean;
   /** 调试模式 */
   mode: DebugMode;
+  /** 结束原因（工程可观测性）：明确为何退出，避免死循环无解释 */
+  stopReason: StopReason;
   /** 结构化调试报告（report 模式 / 任何模式都会生成，供开发 AI 消费） */
   report?: DebugReport;
 }
@@ -378,6 +393,7 @@ export async function runAgentLoop(
 ): Promise<AgentLoopResult> {
   const maxSteps = opts.maxSteps ?? 20;
   const maxRetries = opts.maxRetries ?? 2;
+  const timeoutMs = opts.timeoutMs ?? 120_000;
   const mode: DebugMode = opts.mode ?? "debug";
   const goal = opts.goal ?? "";
   const turns: AgentTurn[] = [];
@@ -385,7 +401,9 @@ export async function runAgentLoop(
   let usedDiagnosis = false;
   let lastSuccess: AgentTurn | undefined;
   let observedContext: string | undefined;
+  let stopReason: StopReason = "max-steps";
   const toolByName = new Map(tools.map((t) => [t.name, t]));
+  const started = Date.now();
 
   // 若提供了仓库知识库上下文，把它作为首条「项目语境」注入决策历史，
   // 让 LLM 的每一步决策都天然带上项目背景（URL 约定/测试账号/已知坑等）。
@@ -399,6 +417,12 @@ export async function runAgentLoop(
   }
 
   for (let step = 1; step <= maxSteps; step++) {
+    // 整环超时：防止死循环
+    if (Date.now() - started > timeoutMs) {
+      stopReason = "timeout";
+      break;
+    }
+
     // 决策：让 deepseek harness 基于当前上下文选择下一步工具
     const decision = await opts.act(tools, turns);
     const tool = toolByName.get(decision.name);
@@ -467,21 +491,37 @@ export async function runAgentLoop(
       const verified = await opts.verify(turns, mcp);
       if (verified) {
         // 目标真实达成
+        stopReason = "goal-achieved";
         break;
       }
+      // verify 明确未达成：不以 close 抢占退出，继续让 LLM 推进（assert 自验收优先）
+    } else if (result.ok && decision.name === "close") {
+      stopReason = "goal-achieved";
+      break;
     }
-    if (result.ok && decision.name === "close") break;
 
-    // 失败重试计数
+    // 失败重试计数 + 去重升级：
+    // - 达到 maxRetries 即升级为「停止自动修复」（too-many-retries），避免死循环；
+    // - report 模式只控制+反馈，失败即转交开发 AI（report-handoff），不自动修复。
     if (!result.ok) {
       retries++;
-      if (retries > maxRetries) break;
+      if (mode === "report") {
+        stopReason = "report-handoff";
+        break;
+      }
+      if (retries > maxRetries) {
+        stopReason = "too-many-retries";
+        break;
+      }
     }
   }
 
   // 自校验：用 verify（若有）判断真实达成；否则用「最近动作成功」判断
+  // 若循环内已因 verify/close 达成而 break（stopReason=goal-achieved），则以之为准，避免重复 verify 产生不一致。
   let ok: boolean;
-  if (opts.verify) {
+  if (stopReason === "goal-achieved") {
+    ok = true;
+  } else if (opts.verify) {
     try {
       ok = await opts.verify(turns, mcp);
     } catch {
@@ -500,11 +540,22 @@ export async function runAgentLoop(
     observedContext
   );
 
-  const summary = ok
-    ? `目标达成（步骤 ${lastSuccess?.step ?? "?"}: ${lastSuccess?.tool ?? "?"}）`
-    : `未能达成目标（已执行 ${turns.length} 步，重试 ${retries} 次）${mode === "report" ? " — 已生成调试报告，交给开发 AI 决策" : ""}`;
+  const reasonText =
+    stopReason === "goal-achieved"
+      ? "目标真实达成"
+      : stopReason === "timeout"
+        ? `整环超时(>${timeoutMs}ms)`
+        : stopReason === "too-many-retries"
+          ? "失败自愈重试次数已达上限"
+          : stopReason === "report-handoff"
+            ? "report 模式：已生成调试报告，交给开发 AI 决策"
+            : `达到最大步数 ${maxSteps}`;
 
-  return { ok, summary, turns, retries, usedDiagnosis, mode, report };
+  const summary = ok
+    ? `目标达成（${reasonText}，共 ${turns.length} 步）`
+    : `未能达成目标（${reasonText}，执行 ${turns.length} 步，重试 ${retries} 次）`;
+
+  return { ok, summary, turns, retries, usedDiagnosis, mode, stopReason, report };
 }
 
 function errTool(text: string): ToolResult {

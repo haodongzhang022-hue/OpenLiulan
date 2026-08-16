@@ -94,6 +94,37 @@ const result = await runAgentLoop(mcp, tools, {
 
 这些发现既可用于驱动 debug 模式的自愈，也可作为 report 模式反馈给开发 AI 的**一手调试信息**。
 
+#### 工程加固：超时 / 去重升级 / stopReason（稳定可工程化）
+
+为了让它**稳定可用**（而非只是演示），`runAgentLoop` 内置了几道工程护栏：
+
+```ts
+const result = await runAgentLoop(mcp, tools, {
+  act: decision,
+  mode: "debug",
+  timeoutMs: 60_000,   // ① 整环超时：防止死循环/长时间卡死
+  maxRetries: 2,       // ② 失败重试，达上限即升级停止自动修复
+  maxSteps: 20,
+});
+
+// ③ 结束原因清晰可观测：
+// result.stopReason ∈
+//   "goal-achieved"    目标真实达成（verify 自验收通过 / close）
+//   "max-steps"        达到最大步数
+//   "too-many-retries" 失败自愈重试达上限，升级为停止自动修复（避免死循环）
+//   "timeout"          整环超时
+//   "report-handoff"   report 模式：已生成结构化报告，转交开发 AI 决策
+```
+
+| 护栏 | 作用 |
+| :--- | :--- |
+| `timeoutMs` | 整环超时（默认 120s），超时即 `stopReason=timeout`，避免死循环 |
+| 失败去重升级 | 同一失败累计达 `maxRetries` 即 `stopReason=too-many-retries`，不再无脑重试 |
+| report 自动转交 | report 模式失败即 `stopReason=report-handoff`，只反馈不自动修 |
+| verify 权威 | 提供 `verify` 时以 assert 自验收为准，避免 close 抢占退出 |
+| `stopReason` | 结束原因可观测，工程上能明确判断为何退出 |
+
+
 ## cnb.cool 适配
 
 cnb.cool 的 CodeBuddy 等 AI 助手可通过两种方式接入：

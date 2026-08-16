@@ -262,6 +262,84 @@ describe("runAgentLoop 调试模式", () => {
   });
 });
 
+describe("runAgentLoop 工程加固（超时 / 去重升级 / stopReason）", () => {
+  function makeFakeMcp(opts: { actOk?: boolean } = {}) {
+    return {
+      tools: [
+        { name: "observe", description: "观察", inputSchema: { type: "object", properties: {} } },
+        { name: "act", description: "动作", inputSchema: { type: "object", properties: {} } },
+        { name: "diagnose", description: "诊断", inputSchema: { type: "object", properties: {} } },
+        { name: "close", description: "关闭", inputSchema: { type: "object", properties: {} } },
+      ],
+      callTool: async (name: string) => {
+        if (name === "diagnose")
+          return okResult("# 诊断结果 (存在问题)\n- [console/error] 控制台有 2 条错误\n1. 检查 JS 异常堆栈");
+        if (name === "observe") return okResult("# 页面: Test\nURL: http://example.com\n- ref=r1 <button> \"Go\"");
+        if (name === "act") return opts.actOk === false ? errResult("动作失败: 元素不可交互") : okResult("动作成功");
+        if (name === "close") return okResult("closed");
+        return okResult("ok");
+      },
+    } as any;
+  }
+
+  it("达到目标返回 stopReason=goal-achieved", async () => {
+    const mcp = makeFakeMcp({ actOk: true });
+    const tools = toHarnessTools(mcp);
+    const result = await runAgentLoop(mcp, tools, {
+      mode: "debug",
+      goal: "g",
+      act: async () => ({ name: "close", args: {} }),
+      autoObserve: false,
+    });
+    expect(result.stopReason).toBe("goal-achieved");
+    expect(result.ok).toBe(true);
+  });
+
+  it("连续失败达到 maxRetries 升级为 stopReason=too-many-retries（避免死循环）", async () => {
+    const mcp = makeFakeMcp({ actOk: false }); // act 持续失败
+    const tools = toHarnessTools(mcp);
+    const result = await runAgentLoop(mcp, tools, {
+      mode: "debug",
+      goal: "g",
+      act: async () => ({ name: "act", args: { type: "click" } }),
+      maxRetries: 1,
+      autoObserve: false,
+    });
+    expect(result.stopReason).toBe("too-many-retries");
+    expect(result.ok).toBe(false);
+  });
+
+  it("report 模式失败即转交：stopReason=report-handoff，不自动修复", async () => {
+    const mcp = makeFakeMcp({ actOk: false });
+    const tools = toHarnessTools(mcp);
+    const result = await runAgentLoop(mcp, tools, {
+      mode: "report" as DebugMode,
+      goal: "g",
+      act: async () => ({ name: "act", args: { type: "click" } }),
+      autoObserve: false,
+    });
+    expect(result.stopReason).toBe("report-handoff");
+    expect(result.report).toBeDefined();
+  });
+
+  it("整环超时：stopReason=timeout", async () => {
+    const mcp = makeFakeMcp({ actOk: true });
+    const tools = toHarnessTools(mcp);
+    // 用极小的 timeout，每次 act 决策被延迟，循环顶部累计触发超时
+    const result = await runAgentLoop(mcp, tools, {
+      mode: "debug",
+      goal: "g",
+      act: async () => {
+        await new Promise((r) => setTimeout(r, 30));
+        return { name: "act", args: { type: "click" } }; // 非 close，避免抢占退出
+      },
+      timeoutMs: 10,
+      autoObserve: false,
+    });
+    expect(result.stopReason).toBe("timeout");
+  });
+});
+
 describe("CNB 调试会话 parseDiagnosisText", () => {
   it("解析诊断文本为结构化发现", () => {
     const diagText = [
