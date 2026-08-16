@@ -28,6 +28,12 @@
 import type { ForgeMcp } from "../forge-mcp.js";
 import type { ToolResult } from "../tools.js";
 import { snapshotToPrompt } from "@browser-ai-forge/ai-layer";
+import {
+  RepeatErrorRegistry,
+  matchSolution,
+  renderAdvice,
+  type SolutionMatch,
+} from "../solutions.js";
 
 export interface HarnessTool {
   name: string;
@@ -276,6 +282,13 @@ export interface AgentLoopOptions {
    * 超时后以 stopReason="timeout" 终止。
    */
   timeoutMs?: number;
+  /**
+   * 是否启用「错误自动匹配解决方案」引擎（默认 true）。
+   * 启用后，同指纹错误出现 2 次会自动推荐方案（简单→auto 直接修，复杂→guide 推思路）。
+   */
+  enableSolutionMatcher?: boolean;
+  /** 复用外部的重复错误注册表（多轮可共用）；缺省内部自建 */
+  solutionRegistry?: RepeatErrorRegistry;
 }
 
 /** AgentLoop 单步记录 */
@@ -316,6 +329,8 @@ export interface AgentLoopResult {
   stopReason: StopReason;
   /** 结构化调试报告（report 模式 / 任何模式都会生成，供开发 AI 消费） */
   report?: DebugReport;
+  /** 错误自动匹配触发的解决方案（二次同类错误后） */
+  solutions?: SolutionMatch[];
 }
 
 /**
@@ -405,6 +420,11 @@ export async function runAgentLoop(
   const toolByName = new Map(tools.map((t) => [t.name, t]));
   const started = Date.now();
 
+  // 错误自动匹配解决方案引擎：同指纹错误出现 2 次才触发推荐（不多余也不困境）
+  const enableSolutionMatcher = opts.enableSolutionMatcher ?? true;
+  const solutionRegistry = opts.solutionRegistry ?? new RepeatErrorRegistry();
+  const solutions: SolutionMatch[] = [];
+
   // 若提供了仓库知识库上下文，把它作为首条「项目语境」注入决策历史，
   // 让 LLM 的每一步决策都天然带上项目背景（URL 约定/测试账号/已知坑等）。
   if (opts.knowledgeContext) {
@@ -461,6 +481,24 @@ export async function runAgentLoop(
       }
       // report 模式：保留诊断文本到 turn（用于生成报告），但不注入 result，
       // 让开发 AI 通过最终 report 拿到结构化的调试发现。
+
+      // 错误自动匹配：同指纹错误第 2 次出现时推荐解决方案（auto 直接修 / guide 推思路）
+      if (enableSolutionMatcher) {
+        const match = matchSolution(
+          solutionRegistry,
+          `${diagText}\n${result.content?.[0]?.text ?? ""}`
+        );
+        if (match.triggered) {
+          solutions.push(match);
+          if (match.advice) {
+            // 把推荐方案注入诊断上下文，让 LLM 拿到「没往这里想」的成熟解
+            result = {
+              ...result,
+              content: [...result.content, { type: "text", text: "\n[解决方案推荐]\n" + match.advice }],
+            };
+          }
+        }
+      }
     }
 
     turns.push({ step, tool: decision.name, args: decision.args, result, retry, diagnosis: diagnosisText });
@@ -555,7 +593,7 @@ export async function runAgentLoop(
     ? `目标达成（${reasonText}，共 ${turns.length} 步）`
     : `未能达成目标（${reasonText}，执行 ${turns.length} 步，重试 ${retries} 次）`;
 
-  return { ok, summary, turns, retries, usedDiagnosis, mode, stopReason, report };
+  return { ok, summary, turns, retries, usedDiagnosis, mode, stopReason, report, solutions };
 }
 
 function errTool(text: string): ToolResult {

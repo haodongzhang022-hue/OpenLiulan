@@ -260,6 +260,34 @@ describe("runAgentLoop 调试模式", () => {
     expect(result.ok).toBe(true);
     expect(verifyCalls).toBeGreaterThanOrEqual(2);
   });
+
+  it("错误自动匹配：同类错误二次触发后返回解决方案", async () => {
+    // 两次 act 都失败且都是网络错误 → 第 2 次触发解决方案推荐
+    let actCalls = 0;
+    const mcp = makeFakeMcp({ diagText: "# 诊断结果 (存在问题)\n- [network/error] 网络存在 1 个失败请求" });
+    const tools = toHarnessTools(mcp);
+
+    const result = await runAgentLoop(mcp, tools, {
+      mode: "debug",
+      goal: "触发方案推荐",
+      act: async (tools, history) => {
+        actCalls++;
+        if (actCalls <= 2) return { name: "act", args: { type: "click" } }; // 两次失败
+        return { name: "close", args: {} };
+      },
+      maxRetries: 5,
+      autoObserve: false,
+    });
+
+    // 同类网络错误出现 2 次后，应触发解决方案
+    expect(result.solutions).toBeDefined();
+    const matched = result.solutions!.filter((s) => s.triggered);
+    expect(matched.length).toBeGreaterThan(0);
+    expect(matched[0].entry).toBeDefined();
+    // 第 2 次失败的动作里应注入方案推荐文本
+    const secondTurn = result.turns.find((t) => t.tool === "act" && t.result.content.some((c) => c.text.includes("解决方案推荐")));
+    expect(secondTurn).toBeDefined();
+  });
 });
 
 describe("runAgentLoop 工程加固（超时 / 去重升级 / stopReason）", () => {

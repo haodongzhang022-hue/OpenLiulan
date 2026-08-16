@@ -21,6 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ForgeMcp } from "../forge-mcp.js";
 import type { ToolResult } from "../tools.js";
+import { RepeatErrorRegistry, matchSolution, type SolutionMatch } from "../solutions.js";
 
 /**
  * 供 cnb 端封装为独立进程的 stdio MCP 服务入口。
@@ -176,6 +177,8 @@ export interface CiCheckResult {
   artifacts: string[];
   /** 聚合诊断文本（供 PR 评论 / 制品） */
   report: string;
+  /** 错误自动匹配触发的解决方案（二次同类错误后） */
+  solutions?: SolutionMatch[];
 }
 
 /**
@@ -189,6 +192,9 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
   const artifactDir = cfg.artifactDir ?? "./forge-artifacts";
   const steps: CiStepResult[] = [];
   const artifacts: string[] = [];
+  const solutions: SolutionMatch[] = [];
+  // CI 内启用错误自动匹配解决方案（同指纹错误 2 次才推荐）
+  const registry = new RepeatErrorRegistry();
 
   if (cfg.persistArtifacts) {
     fs.mkdirSync(artifactDir, { recursive: true });
@@ -206,6 +212,15 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
     if (!result.ok && step.diagnoseOnFail !== false) {
       const diag = await mcp.callTool("diagnose", {});
       s.diagnostics = diag.content?.[0]?.text;
+      // 错误自动匹配解决方案：同类问题第 2 次出现时推荐方案
+      const match = matchSolution(
+        registry,
+        `${s.diagnostics ?? ""}\n${s.summary}`
+      );
+      if (match.triggered) {
+        solutions.push(match);
+        if (match.advice) s.diagnostics = `${s.diagnostics ?? ""}\n---\n${match.advice}`;
+      }
     }
 
     // 截图类结果落盘为制品（CNB CI 可将其作为构建产物收集）
@@ -231,6 +246,10 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
     ...steps.map(
       (s) => `- [${s.ok ? "✓" : "✗"}] ${s.action}: ${s.summary}${s.diagnostics ? `\n  ${s.diagnostics}` : ""}`
     ),
+    // 错误自动匹配解决方案汇总（同类问题第 2 次触发）
+    ...(solutions.length
+      ? ["", `## 自动匹配的解决方案（${solutions.length} 条）`, ...solutions.map((m) => m.advice).filter(Boolean)]
+      : []),
   ].join("\n");
 
   if (cfg.persistArtifacts) {
@@ -239,7 +258,7 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
     artifacts.push(reportFile);
   }
 
-  return { ok, passed, failed, steps, artifacts, report };
+  return { ok, passed, failed, steps, artifacts, report, solutions };
 }
 
 /**

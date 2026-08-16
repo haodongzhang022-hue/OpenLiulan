@@ -224,6 +224,58 @@ const ctx = buildKnowledgeContext([
 // 把 ctx 注入 Agent 的 system prompt，AI 即带上了仓库知识决策
 ```
 
+### 增强：错误自动匹配解决方案（二次触发，不多余也不困境）
+
+这是「cnb.cool 在线优势」的进一步升级：当调试/CI 过程中出现问题时，把「问题情况」
+检索匹配到内置解决方案知识库（`solutions.ts` 的 `SOLUTION_PLAYBOOK`），自动推荐方案。
+
+**分级处理**：
+- **简单问题（`level: "auto"`）** → 直接标准化自动化，给出可直接落地的修复步骤，反馈即结果；
+- **复杂问题（`level: "guide"`）** → 识别问题类型后，推荐对应的 **模块 skill / 开源项目 / 解决思路**，
+  把「没往这里想」的困境点破。
+
+**二次触发机制**：为避免每次都打扰，同一类错误（用**错误指纹**归一化）出现 **2 次才触发**
+推荐——第 1 次静默计数，第 2 次给出方案。这就是「不多余，也不困境」。
+
+```ts
+import {
+  RepeatErrorRegistry,
+  matchSolution,
+  fingerprintError,
+  SOLUTION_PLAYBOOK,
+} from "@browser-ai-forge/mcp-server";
+
+const registry = new RepeatErrorRegistry(); // 默认阈值 2
+
+// 第 1 次同类错误：仅计数，不触发
+const m1 = matchSolution(registry, "网络存在 1 个失败请求 404");
+// { triggered: false, fingerprint: "network:http-error", occurrences: 1 }
+
+// 第 2 次同类错误（同指纹）：触发推荐
+const m2 = matchSolution(registry, "请求失败 GET /api 404");
+// { triggered: true, occurrences: 2, entry, advice: "…" }
+```
+
+内置 playbook 覆盖常见前端/浏览器问题（网络 404/500、CORS 跨域、JS 未捕获异常、DOM 定位失败、
+性能 TTFB、SSR 水合、登录鉴权重定向、白屏等），并与仓库知识库（`buildKnowledgeContext`）互补。
+
+该引擎已自动接入：
+- **`runAgentLoop`**（debug/report 调试循环）：失败动作经诊断后自动匹配，二次触发时把方案注入
+  决策上下文（`result.solutions` 保留触发记录）；
+- **`runCiCheck`**（CI 冒烟）：步骤失败自动匹配，方案汇入 `result.solutions` 与 CI 报告/制品；
+
+```ts
+// runAgentLoop 中自动启用（可传 solutionRegistry 复用外部计数，或 enableSolutionMatcher:false 关闭）
+const result = await runAgentLoop(mcp, tools, {
+  act: decision,
+  mode: "debug",
+  goal: "排查登录页报错",
+  // solutionRegistry?: 外部注册表（多轮共用计数）
+  // enableSolutionMatcher?: 默认 true
+});
+console.log(result.solutions); // 触发的解决方案列表
+```
+
 ## CDP 直连（复用 DevTools 调试通道）
 
 当需要调试**真实运行中的浏览器**时，连接其 CDP 端点：
