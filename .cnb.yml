@@ -13,6 +13,25 @@
         - name: test
           script: |
             npm run test
+    # 云端 CI 冒烟（浏览器验收）：真实浏览器验证 + 方案库沉淀成长。
+    # 推送到 main 后额外启动真实 Chromium 跑导航/断言/截图，失败即驱动 CI 红/绿；
+    # 通过 --solution-repo 启用可成长方案库：错误二次触发推荐、未命中新错误记候选、
+    # 报告注入已沉淀方案，供在线/本地 AI 决策引用。
+    - name: browser-smoke
+      docker:
+        image: mcr.microsoft.com/playwright:v1.62.1-noble
+      stages:
+        - name: install
+          script: |
+            npm ci
+            npx playwright install chromium
+        - name: build
+          script: |
+            npm run build
+        - name: smoke
+          script: |
+            node packages/mcp-server/dist/cli.js --ci-spec ./examples/ci-spec.json --solution-repo ./solutions-repo.json
+            # 失败返回非零退出码 → 驱动 CI 红/绿；报告已注入沉淀方案，可回写 PR 评论
   pull_request:
     - name: build-and-test
       docker:
@@ -29,23 +48,3 @@
             # 单测 + 真实浏览器验收（防止假装测试：
             # 必须真实控制浏览器并断言真实 DOM 状态）
             npm run test
-  # 云端 CI 冒烟（浏览器验收）：真实浏览器验证 + 方案库沉淀成长。
-  # 每次构建都在云端真实启动 Chromium 跑导航/断言/截图，失败即驱动 CI 红/绿；
-  # 通过 --solution-repo 启用可成长方案库：错误二次触发推荐、未命中新错误记候选、
-  # 报告注入已沉淀方案，供在线/本地 AI 决策引用。
-  smoke:
-    - name: browser-smoke
-      docker:
-        image: mcr.microsoft.com/playwright:v1.62.1-noble
-      stages:
-        - name: install
-          script: |
-            npm ci
-            npx playwright install chromium
-        - name: build
-          script: |
-            npm run build
-        - name: smoke
-          script: |
-            node packages/mcp-server/dist/cli.js --ci-spec ./examples/ci-spec.json --solution-repo ./solutions-repo.json
-            # 失败返回非零退出码 → 驱动 CI 红/绿；报告已注入沉淀方案，可回写 PR 评论
