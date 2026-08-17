@@ -8,12 +8,20 @@ import type { UnifiedAction, ActionResult } from "./actions.js";
 import type { PageSnapshot, SnapshotOptions } from "./snapshot.js";
 import type { DiagnosticRef } from "./actions.js";
 
-/** 调试诊断采集结果（来自 diagnosis 中心） */
+/**
+ * 调试诊断采集结果（来自 diagnosis 中心）
+ * 与 diagnosis 包的 DiagnosisReport 结构对齐（含 dom / accessibility），
+ * 确保各包对「诊断报告」的定义一致，避免 as any 强转掩盖类型断裂。
+ */
 export interface DiagnosticReport {
   console: DiagnosticRef[];
   network: DiagnosticRef[];
+  /** DOM 检查/定位失败相关诊断（缺省为空数组，由引擎的 DOM 采集器填充） */
+  dom: DiagnosticRef[];
   performance: DiagnosticRef[];
   jsExceptions: DiagnosticRef[];
+  /** 无障碍/ARIA 诊断（缺省为空数组，由引擎填充） */
+  accessibility: DiagnosticRef[];
 }
 
 /** 底层引擎统一接口 */

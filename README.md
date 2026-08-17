@@ -47,6 +47,9 @@ browser-ai-forge/
 │   ├── ai-layer/      # AI 语义层（自然语言 -> 动作）
 │   ├── token/         # Token 高效提取策略
 │   └── mcp-server/    # 统一 MCP Server + deepseek/cnb 适配
+│       ├── events/    # 事件协议（动作/诊断/错误/截图/日志）
+│       ├── logger/    # 会话事件日志器（SessionLogger）
+│       └── message/   # AI 协作消息协议（AIMessage，文本+图片+错误+日志）
 ├── examples/          # 示例与快速上手
 └── docs/              # 架构设计文档
 ```
@@ -71,6 +74,22 @@ JS 异常等一手信息，不必像「开发 AI」那样隔着代码猜测。�
 - **二次触发**：同一类错误（错误指纹）**出现 2 次才触发推荐**，避免每次打扰。
 
 该引擎自动接入 `runAgentLoop` 与 `runCiCheck`，详见 [MCP/知识库/解决方案文档](docs/mcp-integration.md)。
+
+### AI 协作：日志 / 图片 / 错误传递（面向外部 AI 的最后一公里）
+
+框架把「跟 IDE / 外部 AI 协作」的所有信息统一沉淀为**结构化事件流**，并封装成
+**AI 协作消息**（`AIMessage`），让外部 AI 无需解析散落文本即可清晰使用：
+
+- **日志系统**：`SessionLogger` 维护一条连贯的会话事件流（动作/诊断/错误/截图/日志），
+  带时间戳与级别，可订阅实时推送、可拉取历史快照、可导出 markdown。
+- **图片传递**：截图写入 `ScreenshotEvent`，在 MCP 协议层序列化为标准的 `image` content 块，
+  供多模态 AI 看图定位。
+- **Bug 传递**：动作失败/异常自动生成 `ForgeErrorEvent`，携带**错误码 + 根因 + 解释 +
+  修复建议 + 关联截图**，把「报错原因和解释」完整交给外部 AI。
+- **可追踪**：新增 `session_log` 工具让 AI 随时拉取事件流；每次工具返回都附带事件流与
+  `sessionId`，确保「功能可被 AI 作为用户清晰使用」。
+
+详见 [AI 协作消息传递协议](docs/ai-collaboration.md)。
 
 **可成长的在线方案库**：内置 playbook 之上叠加 `SolutionRepository` 持久化沉淀库——
 新错误（内置未命中）会被记录为候选，解决后 `addSolution()` 入库并跨会话持久化，

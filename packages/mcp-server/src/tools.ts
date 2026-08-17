@@ -77,10 +77,26 @@ export const TOOLS: McpToolSchema[] = [
   },
   {
     name: "screenshot",
-    description: "截取当前页面（可整页），返回 base64 图片，用于视觉确认。",
+    description:
+      "截取当前页面（可整页），返回 base64 图片，用于视觉确认。截图会作为图片事件写入会话日志，供多模态 AI 消费。",
     inputSchema: {
       type: "object",
-      properties: { fullPage: { type: "boolean", description: "是否整页截图" } },
+      properties: {
+        fullPage: { type: "boolean", description: "是否整页截图" },
+        caption: { type: "string", description: "截图说明（写入日志事件）" },
+      },
+    },
+  },
+  {
+    name: "session_log",
+    description:
+      "获取当前会话的事件日志流（动作/诊断/错误/截图轨迹）。这是 AI 协作的追踪能力：让外部 AI 看到『发生了什么 + 为什么失败 + 建议』。format=json 返回结构化事件，默认返回 markdown。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        format: { type: "string", enum: ["markdown", "json"], description: "输出格式，默认 markdown" },
+        title: { type: "string", description: "markdown 报告标题" },
+      },
     },
   },
   {

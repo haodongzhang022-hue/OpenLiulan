@@ -10,8 +10,12 @@
 | `act` | 统一动作执行（13 种） | 中 |
 | `diagnose` | 5 星调试诊断（健康度 + 建议） | 按需 |
 | `eval` | 注入 JS 高级诊断 | 低 |
-| `screenshot` | 截图（base64） | 高（按需） |
+| `screenshot` | 截图（base64，写入图片事件供多模态 AI） | 高（按需） |
+| `session_log` | 会话事件日志流（动作/诊断/错误/截图轨迹，AI 协作追踪） | 中 |
 | `close` | 关闭浏览器 | - |
+
+> 完整的 AI 协作消息传递 / 日志 / 图片 / 错误传递协议见
+> **[docs/ai-collaboration.md](./ai-collaboration.md)**。
 
 ## deepseek harness 适配
 
@@ -172,7 +176,8 @@ npx forge-mcp --ci-spec ./ci-spec.json
     { "action": "act", "args": { "type": "assert", "text": "Example", "mode": "text-contains" } },
     { "action": "screenshot", "args": { "fullPage": true }, "nonFatal": true }
   ],
-  "artifactDir": "./forge-artifacts"
+  "artifactDir": "./forge-artifacts",
+  "solutionRepoFile": "./solutions-repo.json"   // 可选：CLI 已透传，启用可成长方案库
 }
 ```
 

@@ -32,6 +32,16 @@ export interface Located {
   anchorSelector: string;
 }
 
+/**
+ * 语义解析器回调：把自然语言语义描述解析为可定位参数。
+ * 由引擎在初始化时注入（通常基于 ai-layer 的语义定位器，结合快照做
+ * 中文分词/语义相似度匹配），从而打通「AI 语义层 → 引擎精确定位」的链路。
+ * 返回 null 表示未命中。
+ */
+export interface SemanticResolver {
+  resolve(semantic: string): Promise<{ ref?: string; text?: string; selector?: string } | null>;
+}
+
 const INTERACTIVE_SELECTOR = [
   "a[href]",
   "button",
@@ -45,7 +55,7 @@ const INTERACTIVE_SELECTOR = [
 ].join(", ");
 
 export class ElementLocator {
-  constructor(private page: Page) {}
+  constructor(private page: Page, private semanticResolver?: SemanticResolver) {}
 
   /**
    * 根据动作参数定位元素，多策略依次回退。
@@ -82,7 +92,7 @@ export class ElementLocator {
       }
     }
 
-    // 4) 语义回退：尝试 role/name 组合
+    // 4) 语义回退：尝试 role/name 组合，再用 ai-layer 语义定位器（中文分词/语义相似度）
     if (semantic) {
       const bySemantic = this.locateBySemantic(semantic);
       if ((await bySemantic.count())) {
@@ -91,6 +101,24 @@ export class ElementLocator {
           strategy: "semantic",
           anchorSelector: await this.toCss(bySemantic.first()),
         };
+      }
+      // aria/placeholder/title 未命中 → 交给语义定位器（基于快照做语义相似度匹配）
+      if (this.semanticResolver) {
+        const resolved = await this.semanticResolver.resolve(semantic);
+        if (resolved?.ref || resolved?.selector || resolved?.text) {
+          const byResolved = resolved.selector
+            ? this.page.locator(resolved.selector)
+            : resolved.text
+              ? this.locateByText(resolved.text)
+              : this.locateByRef(resolved.ref!);
+          if ((await byResolved.count())) {
+            return {
+              locator: byResolved.first(),
+              strategy: "semantic",
+              anchorSelector: resolved.selector || (await this.toCss(byResolved.first())),
+            };
+          }
+        }
       }
     }
 

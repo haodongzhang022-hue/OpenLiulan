@@ -61,6 +61,9 @@ export const ClickActionSchema = BaseActionSchema.extend({
   clickCount: z.number().int().min(1).max(3).default(1),
   /** 强制忽略可操作性检查 */
   force: z.boolean().default(false),
+  /** 点击后是否等待页面导航稳定（点击链接触发跳转时，等待新页面加载完成再返回）。
+   *  默认 true，确保 AI 点击跳转后读到的是稳定后的页面，而非旧页面。 */
+  waitForNavigation: z.boolean().default(true),
 });
 
 /** 输入动作 */
