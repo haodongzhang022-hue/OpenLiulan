@@ -76,11 +76,23 @@ node packages/mcp-server/dist/cli.js --gen-token
 
 ## 4. Webhook SSRF 防护
 
-`runDebugSession` 的自定义投递（`owner.channel = "webhook"`）在 `fetch(target)` 前校验目标：
+`runDebugSession` 的自定义投递（`owner.channel = "webhook"`）在 `fetch(target)` 前校验目标，
+统一走 `isPrivateOrLoopbackHost()`（`packages/mcp-server/src/security.ts`）：
 
 - 仅允许 `http:` / `https:` 协议；
-- 拒绝 `localhost`、`*.local`、`10.*`、`127.*`、`192.168.*`、`172.16~31.*`、
-  IPv6 字面量、`0.0.0.0` 等**内网/回环地址**，防内网探测/渗透。
+- 拒绝以下**内网/回环/链路本地/云元数据**目标，防内网探测与凭证窃取：
+  - IPv4 回环 `127/8`；
+  - 私有网段 `10/8`、`172.16/12`、`192.168/16`；
+  - CGNAT `100.64/10`；
+  - **链路本地/云元数据 `169.254/16`**（如 AWS `169.254.169.254`，可窃取 IAM 凭证）；
+  - 组播/保留 `224/4`、`240/4`、`198.18/15`、`192.0.0/24`、`0.0.0.0`；
+  - **IPv6 回环 `::1`（含带方括号 `[::1]` 写法）**、IPv4-mapped `::ffff:x.x.x.x`、
+    ULA `fc00::/7`、链路本地 `fe80::/10` 及全零地址；
+  - `localhost`、`*.local`（mDNS）域名。
+
+> 覆盖真实渗透绕过点：`169.254.169.254` 云元数据、`[::1]` 带方括号 IPv6 回环
+> （`new URL().hostname` 会保留方括号导致旧正则失配）、`::ffff:127.0.0.1` 映射回环等，
+> 均会被统一拦截（详见 `security.test.ts` 的 SSRF 用例）。
 
 ---
 
