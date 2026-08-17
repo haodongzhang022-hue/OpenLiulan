@@ -7,7 +7,13 @@ import {
   renderAdvice,
   augmentWithSolution,
   SOLUTION_PLAYBOOK,
+  SolutionRepository,
+  exportSolutionRepoMarkdown,
+  buildSolutionKnowledgeContext,
+  toPersisted,
+  fromPersisted,
 } from "../src/solutions.js";
+import fs from "node:fs";
 
 describe("错误指纹归一化 fingerprintError", () => {
   it("识别网络 404/500", () => {
@@ -28,6 +34,9 @@ describe("错误指纹归一化 fingerprintError", () => {
   it("识别 DOM 定位失败", () => {
     expect(fingerprintError("未找到元素 ref=r3")).toBe("dom:locator-failed");
     expect(fingerprintError("element not found")).toBe("dom:locator-failed");
+    // 真实浏览器实际报错文本：无法定位元素（真实验收暴露的缺陷回归）
+    expect(fingerprintError("✗ 动作执行失败: 无法定位元素：ref=- selector=- text=按钮XYZ semantic=-. 建议调用 observe() 获取最新快照后重试")).toBe("dom:locator-failed");
+    expect(fingerprintError("无法定位元素")).toBe("dom:locator-failed");
   });
 
   it("识别性能 TTFB / 慢请求", () => {
@@ -145,5 +154,136 @@ describe("renderAdvice", () => {
     expect(advice).toContain(e.skill!);
     expect(advice).toContain(e.openSource!);
     expect(advice).toContain("思路");
+  });
+});
+
+describe("可成长解决方案库 SolutionRepository（在线库积累，系统成长）", () => {
+  const tmp = "./tmp-test-solutions-repo.json";
+  const rm = () => { try { fs.unlinkSync(tmp); } catch {} };
+
+  it("内置库未命中的新错误被记录为候选（成长点）", () => {
+    const repo = new SolutionRepository();
+    const reg = new RepeatErrorRegistry();
+    repo.match(reg, "429 too many requests");   // 第1次
+    const m = repo.match(reg, "后端限流 429");  // 第2次，内置未命中
+    expect(m.triggered).toBe(true);
+    expect(m.entry).toBeUndefined();
+    expect(repo.unknownErrors).toContain("generic:action-failed");
+  });
+
+  it("沉淀方案后，下次同类错误可命中（系统成长）", () => {
+    const repo = new SolutionRepository();
+    repo.addSolution({
+      id: "api-rate-limit",
+      fingerprint: "api:rate-limit",
+      title: "后端接口限流（429）",
+      pattern: /429|rate.?limit|限流|too many requests/i,
+      level: "guide",
+      solution: "加指数退避重试；减少并发。",
+      skill: "cnb-pipeline",
+      openSource: "async-retry",
+    });
+    expect(repo.customCount).toBe(1);
+    const reg = new RepeatErrorRegistry();
+    repo.match(reg, "429 too many requests");
+    const m = repo.match(reg, "后端限流 429");
+    expect(m.entry).toBeDefined();
+    expect(m.entry!.title).toContain("限流");
+  });
+
+  it("persist 后 reload 方案仍保留（跨会话成长不丢失）", () => {
+    rm();
+    const repo = new SolutionRepository(tmp);
+    repo.addSolution({
+      id: "api-rate-limit",
+      fingerprint: "api:rate-limit",
+      title: "后端接口限流（429）",
+      pattern: /429|rate.?limit|限流/i,
+      level: "guide",
+      solution: "加退避重试。",
+    });
+    const path = repo.persist();
+    expect(path).toBe(tmp);
+    const repo2 = new SolutionRepository(tmp);
+    expect(repo2.customCount).toBe(1);
+    expect(repo2.lookup("429")).toBeDefined();
+    rm();
+  });
+
+  it("toPersisted / fromPersisted 往返还原", () => {
+    const e = SOLUTION_PLAYBOOK[0];
+    const p = toPersisted(e);
+    expect(p.patternSource).toBe(e.pattern.source);
+    const back = fromPersisted(p);
+    expect(back.id).toBe(e.id);
+    expect(back.pattern.test("404")).toBe(true);
+  });
+
+  it("exportSolutionRepoMarkdown 汇总内置 + 沉淀", () => {
+    const repo = new SolutionRepository();
+    repo.addSolution({
+      id: "x", fingerprint: "f:x", title: "新方案", pattern: /x/i, level: "auto", solution: "解法"
+    });
+    const md = exportSolutionRepoMarkdown(repo);
+    expect(md).toContain("新方案");
+    expect(md).toContain(`共 ${repo.entries.length} 条`);
+  });
+});
+
+describe("沉淀方案 → 决策上下文注入 buildSolutionKnowledgeContext", () => {
+  it("把沉淀方案转为可注入 system prompt 的知识片段", () => {
+    const repo = new SolutionRepository();
+    repo.addSolution({
+      id: "api-rate-limit",
+      fingerprint: "api:rate-limit",
+      title: "后端接口限流（429）",
+      pattern: /429|限流/i,
+      level: "guide",
+      solution: "加指数退避重试；减少并发。",
+      skill: "cnb-pipeline",
+      openSource: "async-retry",
+      source: "my-solution-notes",
+    });
+    const knowledge = buildSolutionKnowledgeContext(repo, { includeBuiltin: false });
+    expect(knowledge.length).toBe(1);
+    const k = knowledge[0];
+    expect(k.title).toContain("限流");
+    expect(k.title).toContain("api:rate-limit");
+    // guide 级别带 skill / 开源项目推荐
+    expect(k.snippet).toContain("cnb-pipeline");
+    expect(k.snippet).toContain("async-retry");
+    expect(k.source).toBe("my-solution-notes");
+  });
+
+  it("默认包含内置 playbook；includeBuiltin:false 仅携带沉淀", () => {
+    const repo = new SolutionRepository();
+    const all = buildSolutionKnowledgeContext(repo);
+    expect(all.length).toBe(SOLUTION_PLAYBOOK.length);
+    const customOnly = buildSolutionKnowledgeContext(repo, { includeBuiltin: false });
+    expect(customOnly.length).toBe(0);
+  });
+
+  it("auto 级别标注可直接执行", () => {
+    const repo = new SolutionRepository();
+    repo.addSolution({
+      id: "fix-base", fingerprint: "f:base", title: "打包 base 错误", pattern: /base/i, level: "auto", solution: "改 Vite base"
+    });
+    const k = buildSolutionKnowledgeContext(repo, { includeBuiltin: false })[0];
+    expect(k.snippet).toContain("可直接执行");
+  });
+
+  it("source 字段随 persist/reload 往返保留", () => {
+    const tmp = "./tmp-test-src-repo.json";
+    try { fs.unlinkSync(tmp); } catch {}
+    const repo = new SolutionRepository(tmp);
+    repo.addSolution({
+      id: "s1", fingerprint: "f:s1", title: "方案1", pattern: /s1/i, level: "auto",
+      solution: "解法", source: "ops-wiki",
+    });
+    repo.persist();
+    const repo2 = new SolutionRepository(tmp);
+    const k = buildSolutionKnowledgeContext(repo2, { includeBuiltin: false })[0];
+    expect(k.source).toBe("ops-wiki");
+    try { fs.unlinkSync(tmp); } catch {}
   });
 });

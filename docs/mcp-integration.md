@@ -276,6 +276,106 @@ const result = await runAgentLoop(mcp, tools, {
 console.log(result.solutions); // 触发的解决方案列表
 ```
 
+### 增强：可成长的在线解决方案库（不依赖检索，越用越大）
+
+内置 playbook 是静态基线；为了「系统能持续成长、上限持续提高」，引入 **`SolutionRepository`**：
+在内置 playbook 之上叠加一层**持久化的用户沉淀方案库**，实现「在线库积累解决方案」的成长闭环：
+
+- **新错误沉淀**：内置库未命中的新错误（第 2 次触发时）会被记录为 `unknownErrors` 候选，
+  供开发 AI / 用户补充方案；
+- **方案入库**：`addSolution()` 把新方案写入库文件（`solutions-repo.json`），去重后持久化；
+- **跨会话成长**：`SolutionRepository(filePath)` 加载上次沉淀的方案，下次同类错误直接命中——
+  **解决过的问题不再重复造轮子，也无需依赖外部检索**；
+- **在线库形态**：库文件可提交进仓库 / 作为 CI 制品导出（`exportSolutionRepoMarkdown`），
+  实现团队共享与版本化。
+
+```ts
+import { SolutionRepository, RepeatErrorRegistry, exportSolutionRepoMarkdown } from "@browser-ai-forge/mcp-server";
+
+const repo = new SolutionRepository("./solutions-repo.json"); // 加载已有沉淀
+const reg = new RepeatErrorRegistry();
+
+// 内置未命中的新错误 → 记为候选
+const m = repo.match(reg, "后端返回 429 too many requests");
+console.log(repo.unknownErrors); // ["generic:action-failed"]
+
+// 解决后沉淀进库（系统成长）
+repo.addSolution({
+  id: "api-rate-limit",
+  fingerprint: "api:rate-limit",
+  title: "后端接口限流（429）",
+  pattern: /429|rate.?limit|限流/i,
+  level: "guide",
+  solution: "加指数退避重试；减少并发；检查高频轮询。",
+});
+repo.persist(); // 写入 ./solutions-repo.json
+
+// 导出为 markdown（可作 PR/制品/文档 = 在线库）
+const md = exportSolutionRepoMarkdown(repo, { title: "项目解决方案库" });
+```
+
+`runCiCheck` 可通过 `solutionRepoFile` 配置启用成长库：
+
+```ts
+const result = await runCiCheck(mcp, {
+  steps, artifactDir: "./forge-artifacts", persistArtifacts: true,
+  solutionRepoFile: "./solutions-repo.json", // 启用可成长方案库
+});
+// report 中会显示「方案库: 内置 8 条 + 沉淀 N 条」
+```
+
+> 说明：真实验收测试还暴露并修复了两处缺陷——`runCiCheck` 的 `nonFatal` 默认应为 true（允许失败后继续，否则二次触发机制无法生效）；`fingerprintError` 对真实报错「无法定位元素」未正确识别为 `dom:locator-failed`（已补充正则与回归测试）。
+
+### 沉淀方案 → 决策上下文（在线/本地信息打通）
+
+成长库积累的方案不应只停留在匹配引擎里，还应注入到**决策上下文**，让在线 CodeBuddy 与本地 Agent
+诊断/规划时默认携带项目已经解决的问题——**避免重复造轮子**。
+
+`buildSolutionKnowledgeContext(repo)` 把方案库（内置 + 沉淀）转为与 `buildKnowledgeContext` 入参一致的
+知识片段（title/snippet/source），可直接拼接到仓库知识库上下文之后：
+
+```ts
+import {
+  SolutionRepository, buildSolutionKnowledgeContext, buildKnowledgeContext,
+} from "@browser-ai-forge/mcp-server";
+
+const repo = new SolutionRepository("./solutions-repo.json"); // 加载已沉淀方案
+// ① 把沉淀方案转为知识片段（仅沉淀部分，避免重复注入内置基线）
+const solKb = buildSolutionKnowledgeContext(repo, { includeBuiltin: false });
+// ② 与仓库知识库合并，一起注入 system prompt
+const ctx = buildKnowledgeContext([
+  { title: "登录流程", snippet: "测试账号 / 内网域名约定", source: "docs/" },
+  ...solKb,
+]);
+// 在线 CodeBuddy / 本地 Agent 决策时默认携带这些积累方案
+```
+
+**自动注入**：`runCiCheck` / `runDebugSession` 传 `solutionRepoFile` 后，CI 报告与调试报告会
+自动追加「项目已沉淀方案」区块，供在线（PR 评论/CI 制品）与本地（报告文件）两侧的 AI 一起引用：
+
+```ts
+// CI 冒烟：报告自动携带沉淀方案
+const result = await runCiCheck(mcp, {
+  steps, artifactDir: "./forge-artifacts", persistArtifacts: true,
+  solutionRepoFile: "./solutions-repo.json",
+});
+// 调试会话：本地/在线报告自动注入沉淀方案
+await runDebugSession(mcp, {
+  goal: "排查登录页报错", url: "http://localhost:3000/login",
+  owner: "developer-ai", solutionRepoFile: "./solutions-repo.json",
+});
+```
+
+CLI 也支持透传：`forge-mcp --ci-spec ./ci-spec.json --solution-repo ./solutions-repo.json`
+与 `forge-mcp --debug-session ./debug-session.json --solution-repo ./solutions-repo.json`。
+
+### 云端 CI 冒烟固化（`.cnb.yml`）
+
+`.cnb.yml` 的 `smoke` 流水线已正式启用，每次构建都在云端真实启动 Chromium 跑
+`--ci-spec ./examples/ci-spec.json --solution-repo ./solutions-repo.json`：真实导航/断言/截图，
+失败即驱动 CI 红/绿，方案库沉淀随构建积累——把「真实验收 + 在线库成长」固化为持续流程。
+
+
 ## CDP 直连（复用 DevTools 调试通道）
 
 当需要调试**真实运行中的浏览器**时，连接其 CDP 端点：

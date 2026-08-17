@@ -18,6 +18,8 @@
  * 内置 playbook 覆盖常见的浏览器/前端调试问题（网络、控制台、JS 异常、DOM 定位、
  * 性能、跨域等），并与项目自身知识库（buildKnowledgeContext）互补。
  */
+import fs from "node:fs";
+import path from "node:path";
 
 /** 问题严重级别 */
 export type SolutionLevel = "auto" | "guide";
@@ -44,6 +46,8 @@ export interface SolutionEntry {
   triggerAfter?: number;
   /** 关键词：用于 fingerprint 判定之外的辅助匹配 */
   keywords?: string[];
+  /** 方案来源标注（默认 solutions-repo；可用于知识上下文溯源） */
+  source?: string;
 }
 
 /** 匹配结果 */
@@ -110,12 +114,12 @@ export const SOLUTION_PLAYBOOK: SolutionEntry[] = [
     id: "dom-locator-failed",
     fingerprint: "dom:locator-failed",
     title: "元素定位/点击失败",
-    pattern: /(?:未找到元素|定位失败|not found|no element|element not found|找不到)/i,
+    pattern: /(?:未找到元素|无法定位|定位失败|定位.*失败|not found|no element|element not found|找不到)/i,
     level: "auto",
     solution:
       "标准化重试：① 改用更稳定的定位策略（ref→selector→semantic 逐级降级）；② 元素可能在异步渲染后出现，先 wait 再操作；③ 若弹窗/iframe 遮挡，先切换 frame 或关闭弹层。",
     triggerAfter: 2,
-    keywords: ["未找到元素", "定位失败", "element not found"],
+    keywords: ["未找到元素", "无法定位元素", "定位失败", "element not found"],
   },
   {
     id: "perf-ttfb-slow",
@@ -190,7 +194,7 @@ export function fingerprintError(text: string): string {
   // JS 异常
   if (/uncaught|未捕获|typeerror|referenceerror|js 异常/.test(t)) return "console:js-exception";
   // DOM 定位
-  if (/未找到元素|定位失败|element not found|no element|not found/.test(t)) return "dom:locator-failed";
+  if (/未找到元素|无法定位|定位失败|定位.*失败|element not found|no element|not found|找不到/.test(t)) return "dom:locator-failed";
   // 鉴权
   if (/401|403|登录|鉴权|未授权|redirect|重定向/.test(t)) return "auth:redirect";
   // 水合
@@ -314,4 +318,262 @@ export function augmentWithSolution(registry: RepeatErrorRegistry, contextText: 
     return `${contextText}\n\n---\n${match.advice}`;
   }
   return contextText;
+}
+
+/* =====================================================================
+ * 可成长的在线解决方案库（Solution Repository）
+ * =================================================================== */
+
+/**
+ * 持久化方案库文件格式（JSON）。
+ * pattern 字段在磁盘上存为字符串，加载时 new RegExp 还原。
+ */
+export interface SolutionRepoFile {
+  /** 方案条目（不含 pattern 无法 JSON 序列化的部分，用 patternSource 字符串存储） */
+  entries: PersistedSolution[];
+  /** 尚未解决的新错误指纹候选（供后续沉淀方案，避免重复造轮子） */
+  unknownErrors?: string[];
+  /** 元信息 */
+  meta?: { updatedAt?: string; source?: string };
+}
+
+/** 可持久化方案条目（pattern 转为字符串） */
+export interface PersistedSolution {
+  id: string;
+  fingerprint: string;
+  title: string;
+  /** 正则源（字符串） */
+  patternSource: string;
+  level: SolutionLevel;
+  solution: string;
+  skill?: string;
+  openSource?: string;
+  triggerAfter?: number;
+  keywords?: string[];
+  /** 方案来源标注 */
+  source?: string;
+}
+
+/** 把内置 SolutionEntry 转为可持久化形式 */
+export function toPersisted(entry: SolutionEntry): PersistedSolution {
+  return {
+    id: entry.id,
+    fingerprint: entry.fingerprint,
+    title: entry.title,
+    patternSource: entry.pattern.source,
+    level: entry.level,
+    solution: entry.solution,
+    skill: entry.skill,
+    openSource: entry.openSource,
+    triggerAfter: entry.triggerAfter,
+    keywords: entry.keywords,
+    source: entry.source,
+  };
+}
+
+/** 把持久化形式还原为运行时 SolutionEntry */
+export function fromPersisted(p: PersistedSolution): SolutionEntry {
+  return {
+    id: p.id,
+    fingerprint: p.fingerprint,
+    title: p.title,
+    pattern: new RegExp(p.patternSource, "i"),
+    level: p.level,
+    solution: p.solution,
+    skill: p.skill,
+    openSource: p.openSource,
+    triggerAfter: p.triggerAfter,
+    keywords: p.keywords,
+    source: p.source,
+  };
+}
+
+/**
+ * 可成长的解决方案仓库：内置 playbook + 用户沉淀的持久化方案库合并查询。
+ *
+ * 这是「不依赖检索、可持续成长」的关键：
+ * - 每次解决一个新问题，调用 `addSolution` 沉淀进库文件（作为「在线库」共享）；
+ * - 遇到未命中的新错误，记录到 `unknownErrors`，供后续补充方案；
+ * - 方案库文件可提交进仓库 / 作为 CI 制品导出，实现「越用越大、上限持续提高」。
+ */
+export class SolutionRepository {
+  /** 内置 playbook（只读基线） */
+  private builtin: SolutionEntry[] = SOLUTION_PLAYBOOK;
+  /** 用户沉淀的方案（持久化） */
+  private custom: SolutionEntry[] = [];
+  /** 未命中的新错误指纹（候选沉淀） */
+  private unknown = new Set<string>();
+  /** 库文件路径 */
+  private filePath?: string;
+
+  constructor(filePath?: string) {
+    this.filePath = filePath;
+    if (filePath) this.load(filePath);
+  }
+
+  /** 全部方案（内置 + 沉淀） */
+  get entries(): SolutionEntry[] {
+    return [...this.builtin, ...this.custom];
+  }
+
+  /** 仅用户沉淀的方案（成长库新增部分） */
+  get customEntries(): SolutionEntry[] {
+    return [...this.custom];
+  }
+
+  /** 加载持久化方案库文件（不存在则忽略） */
+  load(filePath: string): void {
+    try {
+      if (!fs.existsSync(filePath)) return;
+      const raw: SolutionRepoFile = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      if (Array.isArray(raw.entries)) {
+        this.custom = raw.entries.map(fromPersisted);
+      }
+      if (Array.isArray(raw.unknownErrors)) {
+        raw.unknownErrors.forEach((u) => this.unknown.add(u));
+      }
+    } catch {
+      // 库文件损坏/不可读时静默忽略，保留内置基线
+      this.custom = [];
+    }
+  }
+
+  /** 持久化当前库到文件 */
+  persist(filePath?: string): string {
+    const target = filePath ?? this.filePath;
+    if (!target) return "";
+    const data: SolutionRepoFile = {
+      entries: this.custom.map(toPersisted),
+      unknownErrors: [...this.unknown],
+      meta: { updatedAt: new Date().toISOString(), source: "browser-ai-forge" },
+    };
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, JSON.stringify(data, null, 2), "utf8");
+    return target;
+  }
+
+  /**
+   * 在方案库（内置 + 沉淀）中查找匹配条目。
+   * 优先 fingerprint，再 pattern，再关键词。
+   */
+  lookup(text: string, fingerprint?: string): SolutionEntry | undefined {
+    const fp = fingerprint ?? fingerprintError(text);
+    const t = text.toLowerCase();
+    // 1. fingerprint 精确命中（优先自定义沉淀，其次内置）
+    const byFp = this.custom.find((s) => s.fingerprint === fp) ?? this.builtin.find((s) => s.fingerprint === fp);
+    if (byFp) return byFp;
+    // 2. pattern 命中
+    for (const s of this.entries) {
+      if (s.pattern.test(text)) return s;
+    }
+    // 3. 关键词兜底
+    return this.entries.find((s) => s.keywords && s.keywords.some((k) => t.includes(k.toLowerCase())));
+  }
+
+  /**
+   * 核心匹配入口（二次触发 + 库匹配）。
+   * 触发时优先用仓库匹配方案；未命中则记录为新错误候选。
+   */
+  match(registry: RepeatErrorRegistry, errorText: string): SolutionMatch {
+    const { fingerprint, occurrences, triggered } = registry.record(errorText);
+    if (!triggered) {
+      return { triggered: false, fingerprint, occurrences };
+    }
+    const entry = this.lookup(errorText, fingerprint);
+    if (!entry) {
+      // 未命中 → 记录新错误候选，供后续沉淀（成长点）
+      this.unknown.add(fingerprint);
+      return { triggered: true, fingerprint, occurrences };
+    }
+    return {
+      triggered: true,
+      fingerprint,
+      occurrences,
+      entry,
+      advice: renderAdvice(entry),
+    };
+  }
+
+  /**
+   * 沉淀一条新解决方案到自定义库（去重后追加并持久化）。
+   * 返回新增条目的 id；若已存在则返回既有 id。
+   */
+  addSolution(entry: Omit<SolutionEntry, "pattern"> & { pattern: RegExp | string }): string {
+    const normalized: SolutionEntry = {
+      ...entry,
+      pattern: typeof entry.pattern === "string" ? new RegExp(entry.pattern, "i") : entry.pattern,
+    };
+    const existing = this.custom.find((s) => s.id === normalized.id || s.fingerprint === normalized.fingerprint);
+    if (existing) return existing.id;
+    this.custom.push(normalized);
+    this.unknown.delete(normalized.fingerprint);
+    if (this.filePath) this.persist();
+    return normalized.id;
+  }
+
+  /** 未命中的新错误指纹候选 */
+  get unknownErrors(): string[] {
+    return [...this.unknown];
+  }
+
+  /** 沉淀计数（自定义库规模） */
+  get customCount(): number {
+    return this.custom.length;
+  }
+}
+
+/**
+ * 便捷：把解决方案库导出为 markdown（可作 PR 评论 / 制品 / 文档）。
+ * 让「在线库」可被共享、审阅、版本化。
+ */
+export function exportSolutionRepoMarkdown(repo: SolutionRepository, opts: { title?: string } = {}): string {
+  const lines = [
+    `# ${opts.title ?? "错误自动匹配解决方案库"}`,
+    `内置 ${SOLUTION_PLAYBOOK.length} 条 + 沉淀 ${repo.customCount} 条，共 ${repo.entries.length} 条。`,
+    "",
+  ];
+  for (const s of repo.entries) {
+    lines.push(`## [${s.level}] ${s.title}`);
+    lines.push(`- 指纹: \`${s.fingerprint}\``);
+    lines.push(`- 方案: ${s.solution}`);
+    if (s.skill) lines.push(`- skill: ${s.skill}`);
+    if (s.openSource) lines.push(`- 方案/开源项目: ${s.openSource}`);
+    lines.push("");
+  }
+  if (repo.unknownErrors.length) {
+    lines.push(`## 待沉淀的新错误（${repo.unknownErrors.length}）`);
+    repo.unknownErrors.forEach((u) => lines.push(`- \`${u}\``));
+  }
+  return lines.join("\n");
+}
+
+/**
+ * 把方案库（内置 + 沉淀）转成「可注入 system prompt 的知识片段」。
+ *
+ * 这是「已沉淀方案 → 决策上下文」的一环：在线 CodeBuddy 与本地 Agent 在
+ * 诊断/规划时，默认携带项目里已经积累的解决方案，避免重复造轮子，也让
+ * 「解决过的问题不再依赖外部检索」贯穿到每一步决策。
+ *
+ * 返回结构与 `buildKnowledgeContext` 的 knowledge 入参一致（title/snippet/source），
+ * 因此可直接拼接到仓库知识库上下文之后，或单独注入。
+ *
+ * @param repo 方案库实例
+ * @param opts.includeBuiltin 是否包含内置 playbook（默认 true）；仅想携带项目沉淀时设为 false
+ */
+export function buildSolutionKnowledgeContext(
+  repo: SolutionRepository,
+  opts: { includeBuiltin?: boolean; source?: string } = {}
+): Array<{ title: string; snippet: string; source?: string }> {
+  const includeBuiltin = opts.includeBuiltin ?? true;
+  const entries = includeBuiltin ? repo.entries : repo.customEntries;
+  const source = opts.source ?? "solutions-repo";
+
+  return entries.map((s) => ({
+    title: `[方案·${s.level}] ${s.title}（指纹 ${s.fingerprint}）`,
+    snippet:
+      s.level === "auto"
+        ? `可直接执行：${s.solution}`
+        : `推荐思路：${s.solution}${s.skill ? `；可用 skill: ${s.skill}` : ""}${s.openSource ? `；可参考: ${s.openSource}` : ""}`,
+    source: s.source ?? source,
+  }));
 }

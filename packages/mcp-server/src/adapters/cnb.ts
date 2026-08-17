@@ -21,7 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ForgeMcp } from "../forge-mcp.js";
 import type { ToolResult } from "../tools.js";
-import { RepeatErrorRegistry, matchSolution, type SolutionMatch } from "../solutions.js";
+import { RepeatErrorRegistry, matchSolution, SolutionRepository, buildSolutionKnowledgeContext, type SolutionMatch } from "../solutions.js";
 
 /**
  * 供 cnb 端封装为独立进程的 stdio MCP 服务入口。
@@ -157,6 +157,12 @@ export interface CiCheckConfig {
   artifactDir?: string;
   /** 是否把截图等制品作为 CI artifact 保留 */
   persistArtifacts?: boolean;
+  /**
+   * 可成长解决方案库文件路径（可选）。
+   * 提供后，CI 内错误匹配使用「内置 playbook + 该持久化库」的仓库进行匹配；
+   * 未命中的新错误会被记录为候选，方案库可随 CI 沉淀/导出，实现在线库成长。
+   */
+  solutionRepoFile?: string;
 }
 
 /** 单步执行结果 */
@@ -194,7 +200,10 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
   const artifacts: string[] = [];
   const solutions: SolutionMatch[] = [];
   // CI 内启用错误自动匹配解决方案（同指纹错误 2 次才推荐）
+  // 若提供 solutionRepoFile，使用可成长的解决方案仓库（内置 + 沉淀库合并匹配）
   const registry = new RepeatErrorRegistry();
+  const repo = cfg.solutionRepoFile ? new SolutionRepository(cfg.solutionRepoFile) : undefined;
+  const useRepo = !!repo;
 
   if (cfg.persistArtifacts) {
     fs.mkdirSync(artifactDir, { recursive: true });
@@ -213,10 +222,11 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
       const diag = await mcp.callTool("diagnose", {});
       s.diagnostics = diag.content?.[0]?.text;
       // 错误自动匹配解决方案：同类问题第 2 次出现时推荐方案
-      const match = matchSolution(
-        registry,
-        `${s.diagnostics ?? ""}\n${s.summary}`
-      );
+      // 若配置了可成长方案库，用「内置 + 沉淀」仓库匹配并记录新错误候选
+      const errorText = `${s.diagnostics ?? ""}\n${s.summary}`;
+      const match = useRepo && repo
+        ? repo.match(registry, errorText)
+        : matchSolution(registry, errorText);
       if (match.triggered) {
         solutions.push(match);
         if (match.advice) s.diagnostics = `${s.diagnostics ?? ""}\n---\n${match.advice}`;
@@ -233,22 +243,42 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
     }
 
     steps.push(s);
-    if (!step.nonFatal && !s.ok) break; // 致命步骤失败即终止
+    // 非致命步骤（nonFatal 默认 true，即默认允许继续）失败不终止，
+    // 让后续步骤有机会继续（例如同类错误二次触发解决方案）。
+    if (step.nonFatal === false && !s.ok) break; // 仅当显式 nonFatal:false 才致命失败即终止
   }
 
   const passed = steps.filter((s) => s.ok).length;
   const failed = steps.filter((s) => !s.ok).length;
   const ok = failed === 0;
 
+  // 若使用可成长方案库，CI 结束后持久化沉淀的新错误候选（成长不丢失）
+  if (useRepo && repo) {
+    repo.persist();
+  }
+
   const report = [
     `# Forge CI 冒烟检查 ${ok ? "✅ 通过" : "❌ 存在失败"}`,
     `通过 ${passed} / 失败 ${failed}`,
+    ...(useRepo && repo
+      ? [`**方案库**: 内置 8 条 + 沉淀 ${repo.customCount} 条（${repo.entries.length} 条）`]
+      : []),
     ...steps.map(
       (s) => `- [${s.ok ? "✓" : "✗"}] ${s.action}: ${s.summary}${s.diagnostics ? `\n  ${s.diagnostics}` : ""}`
     ),
     // 错误自动匹配解决方案汇总（同类问题第 2 次触发）
     ...(solutions.length
       ? ["", `## 自动匹配的解决方案（${solutions.length} 条）`, ...solutions.map((m) => m.advice).filter(Boolean)]
+      : []),
+    // 沉淀方案知识注入：让 CI 报告/制品携带已积累方案，供在线/本地 AI 决策引用
+    ...(useRepo && repo && repo.customCount
+      ? [
+          "",
+          "## 项目已沉淀方案（可注入决策上下文）",
+          ...buildSolutionKnowledgeContext(repo, { includeBuiltin: false }).map(
+            (k) => `- **${k.title}**${k.source ? `（来源: ${k.source}）` : ""}: ${k.snippet}`
+          ),
+        ]
       : []),
   ].join("\n");
 
@@ -317,6 +347,8 @@ export interface DebugSessionConfig {
   reportFile?: string;
   /** 是否截图留痕（report 模式默认 true） */
   screenshot?: boolean;
+  /** 可成长解决方案库文件路径（可选）。提供后，调试报告会注入已沉淀方案，供本地/在线 AI 决策引用 */
+  solutionRepoFile?: string;
 }
 
 /**
@@ -380,6 +412,32 @@ export async function runDebugSession(mcp: ForgeMcp, cfg: DebugSessionConfig): P
     snapshotContext: snapshotContext.slice(0, 1500),
     markdown: buildSessionMarkdown(cfg, ok, findings, snapshotContext, screenshotB64),
   };
+
+  // 6.5 沉淀方案知识注入：本地/在线 AI 决策时默认携带项目已积累方案（信息打通）
+  if (cfg.solutionRepoFile) {
+    try {
+      const repo = new SolutionRepository(cfg.solutionRepoFile);
+      if (repo.customCount > 0) {
+        const knowledge = buildSolutionKnowledgeContext(repo, { includeBuiltin: false });
+        const injected = [
+          "",
+          "## 项目已沉淀方案（供决策参考，避免重复造轮子）",
+          ...knowledge.map(
+            (k) => `- **${k.title}**${k.source ? `（来源: ${k.source}）` : ""}: ${k.snippet}`
+          ),
+        ].join("\n");
+        // 插入到报告正文末尾、页脚之前
+        const footerIdx = report.markdown.lastIndexOf("---");
+        report.markdown =
+          report.markdown.slice(0, footerIdx < 0 ? report.markdown.length : footerIdx) +
+          injected +
+          "\n\n" +
+          (footerIdx < 0 ? "" : report.markdown.slice(footerIdx));
+      }
+    } catch {
+      // 方案库不可读时静默，不阻断调试报告生成
+    }
+  }
 
   // 7. 按 owner 投递
   if (owner === "developer-ai") {
