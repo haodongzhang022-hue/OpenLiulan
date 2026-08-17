@@ -6,7 +6,7 @@
  * - 意图 -> 动作的规划协议
  * - 语义定位（把语义描述转成动作的 semantic 字段）
  */
-import type { UnifiedAction, PageSnapshot } from "@browser-ai-forge/core";
+import type { UnifiedAction, PageSnapshot } from "@openliulan/core";
 
 /** LLM 后端抽象：统一 AI 能力接入 */
 export interface LlmBackend {

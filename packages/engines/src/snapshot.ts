@@ -9,7 +9,7 @@
  * - 为交互元素生成稳定 data-forge-ref 便于精确定位
  */
 import type { Page } from "playwright";
-import type { PageSnapshot, SnapshotNode, SnapshotOptions } from "@browser-ai-forge/core";
+import type { PageSnapshot, SnapshotNode, SnapshotOptions } from "@openliulan/core";
 
 const ATTR_WHITELIST = ["id", "class", "name", "type", "value", "href", "placeholder", "title", "aria-label", "role", "data-testid", "src", "alt", "checked", "selected", "disabled", "target"];
 const TEXT_TAGS = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "A", "BUTTON", "INPUT", "TEXTAREA", "SELECT", "OPTION", "LI", "TD", "TH", "SPAN", "LABEL", "CAPTION", "SUMMARY"]);

@@ -8,9 +8,9 @@
  * - JS 未捕获异常
  */
 import type { Page } from "playwright";
-import type { DiagnosticRef } from "@browser-ai-forge/core";
-import type { DiagnosticCollector, NetworkRecord, PerformanceMetrics } from "@browser-ai-forge/diagnosis";
-import { analyzeNetwork, analyzePerformance } from "@browser-ai-forge/diagnosis";
+import type { DiagnosticRef } from "@openliulan/core";
+import type { DiagnosticCollector, NetworkRecord, PerformanceMetrics } from "@openliulan/diagnosis";
+import { analyzeNetwork, analyzePerformance } from "@openliulan/diagnosis";
 
 export class ConsoleCollector implements DiagnosticCollector {
   readonly category = "console" as const;

@@ -31,9 +31,9 @@ flowchart TD
 ## 使用方式
 
 ```ts
-import { ForgeBrowser } from "@browser-ai-forge/core";
-import { PlaywrightEngine } from "@browser-ai-forge/engines";
-import { summarize } from "@browser-ai-forge/diagnosis";
+import { ForgeBrowser } from "@openliulan/core";
+import { PlaywrightEngine } from "@openliulan/engines";
+import { summarize } from "@openliulan/diagnosis";
 
 const forge = new ForgeBrowser(new PlaywrightEngine(), { autoDiagnoseOnError: true });
 

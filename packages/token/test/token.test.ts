@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { compactSnapshot, expandNode, estimateTokens, keyElements } from "@browser-ai-forge/token";
-import type { PageSnapshot } from "@browser-ai-forge/core";
+import { compactSnapshot, expandNode, estimateTokens, keyElements } from "@openliulan/token";
+import type { PageSnapshot } from "@openliulan/core";
 
 const mockSnapshot: PageSnapshot = {
   url: "https://example.com",

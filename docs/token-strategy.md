@@ -28,7 +28,7 @@ URL: https://example.com
 需要查看某元素内部详情时才展开：
 
 ```ts
-import { expandNode } from "@browser-ai-forge/token";
+import { expandNode } from "@openliulan/token";
 const detail = expandNode(snapshot, "r12"); // 只展开 r12 节点子树
 ```
 

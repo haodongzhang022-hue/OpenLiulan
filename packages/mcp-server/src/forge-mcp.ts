@@ -4,10 +4,10 @@
  * 内部实现工具分发逻辑。上层可用不同的传输层（stdio/HTTP/SSE）包装，
  * 使其可接入 deepseek harness、cnb.cool、Claude Desktop 等任意 MCP 客户端。
  */
-import { ForgeBrowser } from "@browser-ai-forge/core";
-import { PlaywrightEngine } from "@browser-ai-forge/engines";
-import { DiagnosisCenter } from "@browser-ai-forge/diagnosis";
-import { compactSnapshot } from "@browser-ai-forge/token";
+import { ForgeBrowser } from "@openliulan/core";
+import { PlaywrightEngine } from "@openliulan/engines";
+import { DiagnosisCenter } from "@openliulan/diagnosis";
+import { compactSnapshot } from "@openliulan/token";
 import { TOOLS, okResult, errResult, type ToolResult, type McpToolSchema } from "./tools.js";
 import { SessionLogger } from "./logger.js";
 import { buildAIMessage, messageToContent, type AIMessage } from "./message.js";
@@ -111,7 +111,7 @@ export class ForgeMcp {
           const b = await this.ensureBrowser();
           const report = await b.captureDiagnostics();
           // 用 diagnosis 中心生成摘要（core 与 diagnosis 的报告类型已对齐，无需强转）
-          const { summarize } = await import("@browser-ai-forge/diagnosis");
+          const { summarize } = await import("@openliulan/diagnosis");
           const summary = summarize(report);
           const lines = [`# 诊断结果 (${summary.healthy ? "健康" : "存在问题"})`];
           if (summary.issues.length === 0) {
@@ -238,7 +238,7 @@ export class ForgeMcp {
     const s = summary.toLowerCase();
     if (s.includes("timeout") || s.includes("超时")) return "timeout";
     if (s.includes("404") || s.includes("500") || s.includes("network") || s.includes("网络")) return "network-failure";
-    if (s.includes("not found") || s.includes("找不到") || s.includes("locator")) return "locator-not-found";
+    if (s.includes("not found") || s.includes("找不到") || s.includes("无法定位") || s.includes("未找到") || s.includes("locator")) return "locator-not-found";
     if (diagnostics?.some((d) => d.kind === "js-exception")) return "js-exception";
     if (diagnostics?.some((d) => d.kind === "dom")) return "dom-unrendered";
     return "action-failed";
@@ -295,7 +295,7 @@ export class ForgeMcp {
     if (args.semantic) loc.semantic = args.semantic;
 
     const rest: Record<string, unknown> = {};
-    for (const k of ["url", "value", "key", "ms", "script", "mode", "expected", "fullPage", "deltaY", "delay", "waitUntil"]) {
+    for (const k of ["url", "value", "key", "ms", "script", "mode", "expected", "fullPage", "deltaY", "delay", "waitUntil", "waitForNavigation"]) {
       if (args[k] !== undefined) rest[k] = args[k];
     }
     return { ...base, ...loc, ...rest };

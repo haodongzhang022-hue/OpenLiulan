@@ -7,8 +7,8 @@
  * - 5 星诊断采集（通过 CDP/事件）
  */
 import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
-import type { BrowserEngine, DiagnosticReport, UnifiedAction, ActionResult, PageSnapshot, SnapshotOptions } from "@browser-ai-forge/core";
-import { locateBySemantic } from "@browser-ai-forge/ai-layer";
+import type { BrowserEngine, DiagnosticReport, UnifiedAction, ActionResult, PageSnapshot, SnapshotOptions } from "@openliulan/core";
+import { locateBySemantic } from "@openliulan/ai-layer";
 import { ElementLocator } from "./locator.js";
 import { SnapshotBuilder } from "./snapshot.js";
 import { PlaywrightDiagnostics } from "./diagnostics.js";

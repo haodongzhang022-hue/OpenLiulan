@@ -2,7 +2,7 @@
  * 诊断分析器：把原始诊断数据加工成供 AI 决策的结论。
  * 借鉴 Chrome DevTools MCP「先给结论、再给细节」的思路，节省 Token。
  */
-import type { DiagnosticRef } from "@browser-ai-forge/core";
+import type { DiagnosticRef } from "@openliulan/core";
 import type { DiagnosisReport, DiagnosisSummary, NetworkRecord, PerformanceMetrics } from "./types.js";
 
 /**

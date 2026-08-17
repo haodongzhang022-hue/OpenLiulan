@@ -2,7 +2,7 @@
  * DiagnosisCenter —— 诊断中心门面
  * 聚合各类采集器，产出统一诊断报告与 AI 可读摘要。
  */
-import type { DiagnosticRef } from "@browser-ai-forge/core";
+import type { DiagnosticRef } from "@openliulan/core";
 import type { DiagnosisReport, DiagnosisSummary, DiagnosticCollector } from "./types.js";
 import { summarize } from "./analyzer.js";
 

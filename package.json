@@ -1,5 +1,5 @@
 {
-  "name": "browser-ai-forge",
+  "name": "openliulan",
   "version": "0.1.0",
   "description": "整合 Browser-Use / Stagehand / Chrome DevTools MCP / Playwright MCP 的统一 AI 浏览器控制框架，强化调试诊断能力并适配 deepseek harness 与 cnb.cool",
   "type": "module",
@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=@browser-ai-forge/core --workspace=@browser-ai-forge/diagnosis --workspace=@browser-ai-forge/token --workspace=@browser-ai-forge/ai-layer --workspace=@browser-ai-forge/engines --workspace=@browser-ai-forge/mcp-server",
+    "build": "npm run build --workspace=@openliulan/core --workspace=@openliulan/diagnosis --workspace=@openliulan/token --workspace=@openliulan/ai-layer --workspace=@openliulan/engines --workspace=@openliulan/mcp-server",
     "test": "vitest run",
     "lint": "npm run lint --workspaces --if-present",
     "dev": "node examples/quickstart.mjs"

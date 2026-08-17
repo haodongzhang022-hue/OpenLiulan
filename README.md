@@ -1,109 +1,132 @@
-# Browser AI Forge
+<div align="center">
 
-整合 **Browser-Use**、**Stagehand**、**Chrome DevTools MCP** 与 **Playwright MCP** 四大浏览器自动化项目，构建一个**更强大、更可控、更强诊断能力**的统一 AI 浏览器控制框架。
+# 🚀 OpenLiulan · 开放浏览
 
-> 为 AI Agent（适配 deepseek harness 与 cnb.cool 生态）提供「精确操作 + 深度调试诊断 + 高效 Token」的一体化能力。
+> **开「浏览」之眼，赋「AI」以行动** —— 让 AI 真正看懂网页、精准操作、自愈排障的下一代浏览器控制框架。
+
+**OpenLiulan（开放浏览）** 整合 **Browser-Use / Stagehand / Chrome DevTools MCP / Playwright MCP**
+四大浏览器自动化项目的精华，为 AI Agent 打造「**精确操作 + 深度调试诊断 + 高效 Token**」的一体化能力，
+开箱即用地接入 **DeepSeek Harness** 与 **cnb.cool** 生态。
+
+`TypeScript` · `npm workspace` · `MIT License` · 统一 MCP Server · 自带眼睛 · 自愈调试
+
+</div>
 
 ---
 
-## 背景：为什么整合
+## ✨ 为什么选择 OpenLiulan？
 
-| 维度 | Browser-Use | Stagehand | Chrome DevTools MCP | 原生 Playwright MCP |
-| :--- | :--- | :--- | :--- | :--- |
-| AI 适配度 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
-| 操作精确性 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| Token 效率 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ |
-| 调试/诊断能力 | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
-| 社区活跃度 | 🔥🔥🔥🔥🔥 | 🔥🔥🔥 | 🔥🔥🔥 | 🔥 |
-| MCP 集成 | ✅ 官方 | ✅ 官方 | ✅ 官方 | ✅ 但已过时 |
-| 许可证 | MIT | MIT | Apache-2.0 | Apache-2.0 |
+市面上浏览器自动化工具很多，但**各有短板**。OpenLiulan 把它们的长处拼在一起，取长补短：
 
-**每个项目各有短板，整合可形成互补：**
+| 维度 | Browser-Use | Stagehand | Chrome DevTools MCP | Playwright MCP | **OpenLiulan** |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 🧠 AI 语义层 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ✅ **集大成** |
+| 🎯 操作精确性 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ✅ **最精确** |
+| ⚡ Token 效率 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | ✅ **最高效** |
+| 🔍 调试/诊断 | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ✅ **5 星自带** |
+| 🔌 MCP 集成 | ✅ | ✅ | ✅ | ⚠️ 过时 | ✅ **统一接入** |
+| 🛠️ 双引擎 | — | — | — | — | ✅ **CDP + Playwright** |
 
-- **Browser-Use** 提供最强的 AI 语义层（自然语言动作、元素语义化、多步规划）
-- **Stagehand / Playwright** 提供最精确的底层操作（强选择器、稳定性重试）
-- **Chrome DevTools MCP** 提供 5 星调试/诊断与 5 星 Token 效率
-- **Playwright MCP** 提供成熟的浏览器协议接入（虽过时但协议仍是地基）
+> **一句话**：别人给 AI 的是「手」，OpenLiulan 给 AI 的是一双**能看、能查、能自愈的眼睛**。
 
-## 整合后的能力矩阵（目标）
+---
 
-| 能力 | 来源 | 说明 |
-| :--- | :--- | :--- |
-| 🧠 AI 语义层 | Browser-Use | 自然语言 -> 动作规划、元素语义化描述 |
-| 🎯 精确操作 | Stagehand / Playwright | 强选择器、自动等待、重试与稳定性保障 |
-| 🔍 调试诊断 | Chrome DevTools MCP | DOM/网络/控制台/性能/JS 异常全链路诊断 |
-| ⚡ Token 高效 | Chrome DevTools MCP | 精简 DOM、按需读取、结构化快照 |
-| 🔌 MCP 集成 | 全项目 | 统一 MCP Server，供 Agent / harness 调用 |
-| 🛠️ 协议层 | Playwright MCP | CDP 直连 / Playwright 驱动双引擎 |
+## 🎯 它到底能做什么？
 
-## 目录结构
+OpenLiulan 让 AI 像人一样使用浏览器，并且**比人更靠谱**：
+
+- 🧭 **自然语言操控网页** —— 把「帮我打开登录页并排查报错」翻译成精确的浏览器动作序列；
+- 🔍 **自带眼睛看网页** —— 直接读取真实 DOM、控制台、网络请求、JS 异常，不再隔着代码瞎猜；
+- 🛠️ **精确点击 / 输入 / 跳转** —— 强选择器 + 自动等待 + 稳定性重试，指哪打哪；
+- 💾 **提取结构化信息** —— 一键抽取页面标题、正文、表单等关键数据；
+- ⚡ **Token 高效省电** —— 精简 DOM、按需读取、结构化快照，帮大模型省钱省时；
+- 🚑 **自愈式调试排障** —— 出错自动诊断 → 匹配解决方案 → 重试直到目标真实达成；
+- 🤝 **无缝对接外部 AI** —— 日志、截图、报错以结构化消息喂给 IDE / CodeBuddy / cnb.cool；
+- 🧠 **可成长方案库** —— 解决过的问题沉淀入库，越用越聪明，不重复踩坑。
+
+---
+
+## 🏗️ 架构一览
 
 ```
-browser-ai-forge/
+openliulan/
 ├── packages/
-│   ├── core/          # 核心调度引擎（动作编排、状态机、快照）
-│   ├── engines/       # 底层驱动适配（Playwright / CDP 双引擎）
-│   ├── diagnosis/     # 调试诊断中心（5 星能力）
-│   ├── ai-layer/      # AI 语义层（自然语言 -> 动作）
-│   ├── token/         # Token 高效提取策略
-│   └── mcp-server/    # 统一 MCP Server + deepseek/cnb 适配
-│       ├── events/    # 事件协议（动作/诊断/错误/截图/日志）
-│       ├── logger/    # 会话事件日志器（SessionLogger）
-│       └── message/   # AI 协作消息协议（AIMessage，文本+图片+错误+日志）
-├── examples/          # 示例与快速上手
-└── docs/              # 架构设计文档
+│   ├── core/          # 🧠 核心调度引擎（动作编排、状态机、页面快照）
+│   ├── engines/       # 🛠️ 底层驱动适配（Playwright / CDP 双引擎）
+│   ├── diagnosis/     # 🔍 调试诊断中心（5 星能力）
+│   ├── ai-layer/      # 🧠 AI 语义层（自然语言 -> 动作）
+│   ├── token/         # ⚡ Token 高效提取策略
+│   └── mcp-server/    # 🔌 统一 MCP Server + deepseek/cnb 适配
+│       ├── events/    # 📡 事件协议（动作/诊断/错误/截图/日志）
+│       ├── logger/    # 📋 会话事件日志器（SessionLogger）
+│       └── message/   # 💬 AI 协作消息协议（AIMessage）
+├── examples/          # 🧪 示例与快速上手
+└── docs/              # 📚 架构设计文档
 ```
 
-## 核心亮点：自愈调试 + 自带眼睛
+---
 
-Forge MCP 直接连接真实浏览器，**自带眼睛**——能直接观察到 DOM、控制台、网络、
-JS 异常等一手信息，不必像「开发 AI」那样隔着代码猜测。调试反馈是**可行动的**。
+## 🌟 核心亮点
 
-通过 `runAgentLoop` / `runDebugSession` 提供**双调试模式**，允许用户选择调试负责方：
+### 👁️ 自带眼睛：看到即行动，行动即反馈
 
-- **`debug` 模式**：Agent 负责完整调试——自动诊断 → 自愈重试 → assert 自校验目标真实达成；
-- **`report` 模式**：Agent 只负责**控制与观察**，把结构化调试发现（`report.findings`）
-  反馈给开发 AI（CodeBuddy/cnb.cool），由开发 AI 结合代码全局视角修复——控制与诊断分离。
+OpenLiulan 直接连接真实浏览器，能第一时间观察到 **DOM、控制台、网络、JS 异常**等一手信息。
+调试反馈不再是「猜」，而是**可行动的结论**。
 
-### 错误自动匹配解决方案（不多余，也不困境）
+### 🚑 自愈调试：双模式任你选
 
-在调试/CI 过程中出现问题时会**自动匹配内置解决方案知识库**，按问题难度分级反馈：
+通过 `runAgentLoop` / `runDebugSession` 提供两种调试模式：
 
-- **简单问题** → 直接标准化自动化，返回可直接落地的修复步骤（反馈即结果）；
-- **复杂问题** → 识别问题类型后推荐**模块 skill / 开源项目 / 解决思路**，点破「没往这里想」的困境；
-- **二次触发**：同一类错误（错误指纹）**出现 2 次才触发推荐**，避免每次打扰。
+- **`debug` 模式** —— Agent 全权负责：自动诊断 → 自愈重试 → assert 自校验目标真实达成；
+- **`report` 模式** —— Agent 只负责**控制与观察**，把结构化发现（`report.findings`）交给开发 AI
+  （CodeBuddy / cnb.cool）结合全局代码视角修复，**控制与诊断分离**。
 
-该引擎自动接入 `runAgentLoop` 与 `runCiCheck`，详见 [MCP/知识库/解决方案文档](docs/mcp-integration.md)。
+### 🧰 错误自动匹配解决方案：不多余，也不困境
 
-### AI 协作：日志 / 图片 / 错误传递（面向外部 AI 的最后一公里）
+调试 / CI 出错时自动匹配**内置解决方案知识库**，按难度分级反馈：
 
-框架把「跟 IDE / 外部 AI 协作」的所有信息统一沉淀为**结构化事件流**，并封装成
-**AI 协作消息**（`AIMessage`），让外部 AI 无需解析散落文本即可清晰使用：
+- **简单问题** → 直接给出可落地的修复步骤，反馈即结果；
+- **复杂问题** → 识别问题类型后推荐模块 / 开源项目 / 解决思路，点破「没往这里想」的困境；
+- **二次触发** → 同一错误指纹出现 2 次才推荐，避免每次打扰。
 
-- **日志系统**：`SessionLogger` 维护一条连贯的会话事件流（动作/诊断/错误/截图/日志），
-  带时间戳与级别，可订阅实时推送、可拉取历史快照、可导出 markdown。
-- **图片传递**：截图写入 `ScreenshotEvent`，在 MCP 协议层序列化为标准的 `image` content 块，
-  供多模态 AI 看图定位。
-- **Bug 传递**：动作失败/异常自动生成 `ForgeErrorEvent`，携带**错误码 + 根因 + 解释 +
-  修复建议 + 关联截图**，把「报错原因和解释」完整交给外部 AI。
-- **可追踪**：新增 `session_log` 工具让 AI 随时拉取事件流；每次工具返回都附带事件流与
-  `sessionId`，确保「功能可被 AI 作为用户清晰使用」。
+### 🤝 AI 协作：日志 / 图片 / 错误一键传递
 
-详见 [AI 协作消息传递协议](docs/ai-collaboration.md)。
+- **📋 日志系统**：`SessionLogger` 维护连贯事件流（动作/诊断/错误/截图/日志），可订阅、可拉取、可导出；
+- **🖼️ 图片传递**：截图序列化为标准 `image` content 块，供多模态 AI 看图定位；
+- **🐛 Bug 传递**：失败自动生成 `ForgeErrorEvent`，携带**错误码 + 根因 + 解释 + 修复建议 + 截图**；
+- **📡 可追踪**：`session_log` 工具让 AI 随时拉取事件流，功能对 AI 完全透明。
 
-**可成长的在线方案库**：内置 playbook 之上叠加 `SolutionRepository` 持久化沉淀库——
-新错误（内置未命中）会被记录为候选，解决后 `addSolution()` 入库并跨会话持久化，
-下次同类错误直接命中。方案库文件可提交仓库/作 CI 制品导出，**解决过的问题不再依赖检索、越用越大**。
-`runCiCheck` 传 `solutionRepoFile` 即可启用。
+### 🧠 可成长的方案库：越用越聪明
 
-**沉淀方案 → 决策上下文（信息打通）**：已沉淀的方案可经 `buildSolutionKnowledgeContext(repo)`
-转为可注入 system prompt 的知识片段，再经 `buildKnowledgeContext` 拼接到仓库知识库上下文之后——
-在线 CodeBuddy 与本地 Agent 诊断/规划时默认携带项目积累的解决方案，**避免重复造轮子**。
-`runCiCheck` / `runDebugSession` 传 `solutionRepoFile` 后，CI 报告与调试报告会自动注入已沉淀方案，
-在线与本地调试信息全量打通。
+内置 playbook 之上叠加 `SolutionRepository` 持久化沉淀库——新错误记录为候选，
+解决后 `addSolution()` 入库并跨会话持久化。**解决过的问题不再依赖检索，越用越大**。
+沉淀的方案可注入 system prompt 决策上下文，在线与本地调试信息全量打通，**避免重复造轮子**。
+
+---
+
+## 🚀 快速开始
+
+```bash
+# 1. 安装依赖
+npm install
+
+# 2. 编译所有包
+npm run build
+
+# 3. （首次必做）安装浏览器
+npx playwright install chromium
+
+# 4. 跑一个示例
+node examples/quickstart.mjs
+```
+
+> ⚠️ **注意**：仅 `npm install` 不会自动下载 Playwright 浏览器，
+> 使用真实浏览器自动化前**必须**执行 `npx playwright install chromium`。
+
+### 最小示例：让 AI 排查登录页报错
 
 ```ts
-import { ForgeMcp, runAgentLoop } from "@browser-ai-forge/mcp-server";
+import { ForgeMcp, runAgentLoop } from "@openliulan/mcp-server";
 
 const mcp = new ForgeMcp({ headless: true });
 const result = await runAgentLoop(mcp, toHarnessTools(mcp), {
@@ -116,21 +139,48 @@ const result = await runAgentLoop(mcp, toHarnessTools(mcp), {
 // result.report.findings —— 结构化调试发现（供开发 AI 决策）
 ```
 
-## 快速开始
+---
 
-```bash
-npm install
-npm run build
-node examples/quickstart.mjs
-```
+## 📦 依赖说明
 
-## 文档
+OpenLiulan 基于 **npm workspace**，克隆后需准备：
 
-- [架构设计](docs/architecture.md)
-- [调试诊断中心](docs/diagnosis.md)
-- [MCP / deepseek harness 适配](docs/mcp-integration.md)
-- [Token 策略](docs/token-strategy.md)
+| 类别 | 依赖 | 版本 | 用途 |
+| :--- | :--- | :--- | :--- |
+| 运行环境 | Node.js | >= 20（推荐 22 LTS） | 运行 MCP 服务、编译、Playwright |
+| 生产依赖 | playwright | ^1.45（锁定 1.62.1） | 浏览器启动、CDP、DOM 操作、导航、截图、断言 |
+| 生产依赖 | zod | ^3.23.0 | 动作与数据结构的运行时校验 |
+| 开发依赖 | typescript / vitest / @types/node | — | 编译、单测与真实浏览器验收 |
 
-## License
+> 其余 `@openliulan/*` 均为仓库内部包，无需单独安装。
+> 完整依赖树、DeepSeek Harness 集成配置与实测版本详见
+> **[docs/dependencies.md](docs/dependencies.md)** 与 **[DEPENDENCIES.md](DEPENDENCIES.md)**。
 
-MIT
+---
+
+## 📚 文档
+
+| 文档 | 说明 |
+| :--- | :--- |
+| [架构设计](docs/architecture.md) | 整体架构、门面、双引擎、五层能力 |
+| [调试诊断中心](docs/diagnosis.md) | 5 星诊断能力详解 |
+| [MCP / Harness 适配](docs/mcp-integration.md) | DeepSeek Harness 与 cnb.cool 接入 |
+| [AI 协作消息](docs/ai-collaboration.md) | 日志 / 图片 / 错误传递协议 |
+| [Token 策略](docs/token-strategy.md) | 高效提取与省电策略 |
+| [依赖说明](docs/dependencies.md) | 完整依赖与安装指引 |
+
+---
+
+## 📄 License
+
+**MIT License** —— 自由使用、自由修改、自由分发。
+
+---
+
+<div align="center">
+
+**OpenLiulan · 开放浏览** — 让每一个 AI 都长出一双会浏览的「眼睛」
+
+⭐ 如果它对你有帮助，欢迎 Star 支持！⭐
+
+</div>

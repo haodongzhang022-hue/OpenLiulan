@@ -7,7 +7,7 @@
  * 运行前需安装浏览器: npx playwright install chromium
  * 运行: node examples/ai-collaboration.mjs
  */
-import { ForgeMcp, buildAIMessage, messageToContent } from "@browser-ai-forge/mcp-server";
+import { ForgeMcp, buildAIMessage, messageToContent } from "@openliulan/mcp-server";
 
 async function main() {
   const mcp = new ForgeMcp({ headless: true });

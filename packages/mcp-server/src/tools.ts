@@ -56,6 +56,12 @@ export const TOOLS: McpToolSchema[] = [
         script: { type: "string" },
         mode: { type: "string" },
         expected: { type: "string" },
+        // 截图/滚动/输入/导航细节（供 IDE 的 function calling 完整声明，避免能力被隐藏）
+        fullPage: { type: "boolean", description: "screenshot 时是否整页截图" },
+        deltaY: { type: "number", description: "scroll 时垂直滚动距离" },
+        delay: { type: "number", description: "type 时逐键输入延迟(ms)" },
+        waitUntil: { type: "string", enum: ["load", "domcontentloaded", "networkidle", "commit"], description: "navigate 时等待策略" },
+        waitForNavigation: { type: "boolean", description: "click 时是否等待导航稳定（点击链接触发跳转时）" },
       },
       required: ["type"],
     },

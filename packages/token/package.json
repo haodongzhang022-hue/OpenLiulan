@@ -1,5 +1,5 @@
 {
-  "name": "@browser-ai-forge/token",
+  "name": "@openliulan/token",
   "version": "0.1.0",
   "description": "Token 高效提取策略：DOM 精简、快照压缩、增量读取",
   "type": "module",
@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@browser-ai-forge/core": "0.1.0"
+    "@openliulan/core": "0.1.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

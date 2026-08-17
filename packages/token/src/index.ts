@@ -6,7 +6,7 @@
  * 2. 增量读取（先摘要，按 ref 展开）
  * 3. 结构化压缩输出
  */
-import type { PageSnapshot, SnapshotNode } from "@browser-ai-forge/core";
+import type { PageSnapshot, SnapshotNode } from "@openliulan/core";
 
 /** Token 估算：粗略 4 字符/token */
 export function estimateTokens(text: string): number {

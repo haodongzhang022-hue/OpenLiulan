@@ -1,5 +1,5 @@
 {
-  "name": "@browser-ai-forge/mcp-server",
+  "name": "@openliulan/mcp-server",
   "version": "0.1.0",
   "description": "统一 MCP Server：把 Forge 能力暴露为标准 MCP 工具，适配 deepseek harness / cnb.cool",
   "type": "module",
@@ -15,11 +15,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@browser-ai-forge/core": "0.1.0",
-    "@browser-ai-forge/engines": "0.1.0",
-    "@browser-ai-forge/diagnosis": "0.1.0",
-    "@browser-ai-forge/token": "0.1.0",
-    "@browser-ai-forge/ai-layer": "0.1.0"
+    "@openliulan/core": "0.1.0",
+    "@openliulan/engines": "0.1.0",
+    "@openliulan/diagnosis": "0.1.0",
+    "@openliulan/token": "0.1.0",
+    "@openliulan/ai-layer": "0.1.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

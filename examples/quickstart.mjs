@@ -4,9 +4,9 @@
  * 运行前需安装浏览器: npx playwright install chromium
  * 运行: node examples/quickstart.mjs
  */
-import { ForgeBrowser } from "@browser-ai-forge/core";
-import { PlaywrightEngine } from "@browser-ai-forge/engines";
-import { summarize } from "@browser-ai-forge/diagnosis";
+import { ForgeBrowser } from "@openliulan/core";
+import { PlaywrightEngine } from "@openliulan/engines";
+import { summarize } from "@openliulan/diagnosis";
 
 async function main() {
   // 1. 创建引擎 + Forge 门面（整合核心）

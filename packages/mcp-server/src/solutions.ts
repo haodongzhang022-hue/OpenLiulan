@@ -194,7 +194,7 @@ export function fingerprintError(text: string): string {
   // JS 异常
   if (/uncaught|未捕获|typeerror|referenceerror|js 异常/.test(t)) return "console:js-exception";
   // DOM 定位
-  if (/未找到元素|无法定位|定位失败|定位.*失败|element not found|no element|not found|找不到/.test(t)) return "dom:locator-failed";
+  if (/未找到|无法定位|定位失败|定位.*失败|element not found|no element|not found|找不到/.test(t)) return "dom:locator-failed";
   // 鉴权
   if (/401|403|登录|鉴权|未授权|redirect|重定向/.test(t)) return "auth:redirect";
   // 水合
@@ -445,7 +445,7 @@ export class SolutionRepository {
     const data: SolutionRepoFile = {
       entries: this.custom.map(toPersisted),
       unknownErrors: [...this.unknown],
-      meta: { updatedAt: new Date().toISOString(), source: "browser-ai-forge" },
+      meta: { updatedAt: new Date().toISOString(), source: "openliulan" },
     };
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, JSON.stringify(data, null, 2), "utf8");

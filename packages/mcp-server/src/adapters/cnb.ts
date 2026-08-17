@@ -59,7 +59,7 @@ async function handleMessage(mcp: ForgeMcp, msg: any) {
     respond(id, {
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
-      serverInfo: { name: "browser-ai-forge", version: "0.1.0" },
+      serverInfo: { name: "openliulan", version: "0.1.0" },
     });
     return;
   }
@@ -128,8 +128,23 @@ export function createCnbHttpServer(mcp: ForgeMcp, port = 8787) {
         for await (const chunk of req) body += chunk;
         const { name, arguments: args } = JSON.parse(body || "{}");
         const result = await mcp.callTool(name, args || {});
+        // 与 stdio 保持一致：用 AI 协作消息协议序列化（text + image + 事件流），
+        // 让 HTTP 对接的 IDE / 外部 AI 同样拿到标准的 image content 块（截图可被多模态 AI 消费）
+        const events = (result.structured as any)?.events ?? [];
+        const msg = buildAIMessage({
+          ok: result.ok,
+          text: result.content?.[0]?.text ?? "",
+          events,
+          structured: result.structured as Record<string, unknown>,
+        });
+        const payload = {
+          ok: result.ok,
+          content: messageToContent(msg),
+          isError: result.isError,
+          structured: result.structured,
+        };
         res.writeHead(result.isError ? 500 : 200);
-        res.end(JSON.stringify(result));
+        res.end(JSON.stringify(payload));
         return;
       }
       res.writeHead(404);
@@ -324,7 +339,7 @@ export function toPrComment(result: CiCheckResult): string {
     result.report,
     "",
     "---",
-    `_由 Browser AI Forge 自动生成 | 制品 ${result.artifacts.length} 个 | 耗时见 CI 日志_`,
+    `_由 OpenLiulan 自动生成 | 制品 ${result.artifacts.length} 个 | 耗时见 CI 日志_`,
   ].join("\n");
 }
 
@@ -547,7 +562,7 @@ export function buildSessionMarkdown(
   if (screenshotB64) {
     lines.push("", "![页面截图](./forge-debug-screenshot.png)");
   }
-  lines.push("", "---", "_由 Browser AI Forge 调试会话生成_", `_Owner: ${cfg.owner ?? "developer-ai"}_`);
+  lines.push("", "---", "_由 OpenLiulan 调试会话生成_", `_Owner: ${cfg.owner ?? "developer-ai"}_`);
   return lines.join("\n");
 }
 

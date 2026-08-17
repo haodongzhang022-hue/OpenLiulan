@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { UnifiedActionSchema } from "@browser-ai-forge/core";
+import { UnifiedActionSchema } from "@openliulan/core";
 
 describe("统一动作模型", () => {
   it("校验合法的 navigate 动作", () => {

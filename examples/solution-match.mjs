@@ -18,7 +18,7 @@ import {
   SolutionRepository,
   exportSolutionRepoMarkdown,
   buildSolutionKnowledgeContext,
-} from "@browser-ai-forge/mcp-server";
+} from "@openliulan/mcp-server";
 
 function simulateError(registry, text) {
   const fp = fingerprintError(text);

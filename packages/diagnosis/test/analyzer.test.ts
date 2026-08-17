@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { analyzeNetwork, analyzePerformance, summarize } from "@browser-ai-forge/diagnosis";
+import { analyzeNetwork, analyzePerformance, summarize } from "@openliulan/diagnosis";
 
 describe("网络诊断分析", () => {
   it("识别失败请求为错误级", () => {

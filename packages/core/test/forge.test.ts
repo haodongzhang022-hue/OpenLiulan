@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { ForgeBrowser, type BrowserEngine, type UnifiedAction, type ActionResult, type PageSnapshot } from "@browser-ai-forge/core";
+import { ForgeBrowser, type BrowserEngine, type UnifiedAction, type ActionResult, type PageSnapshot } from "@openliulan/core";
 
 /** 模拟引擎：验证 ForgeBrowser 编排逻辑（无需真实浏览器） */
 function createMockEngine() {
