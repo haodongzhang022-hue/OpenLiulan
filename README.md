@@ -175,12 +175,13 @@ OpenLiulan 基于 **npm workspace**，克隆后需准备：
 > Forge 是「真实浏览器控制」的高权限自动化工具，框架已内建多层安全加固，
 > 详见 **[docs/security.md](docs/security.md)**。要点：
 >
-> - **防令牌/密码泄露**：页面快照对 `password`/`token` 等敏感输入框脱敏，
+> - **防令牌/密码泄露**：页面快照对 `password`/`token`/`jwt` 等敏感输入框脱敏，
 >   日志/事件流/报告/HTTP 响应统一做敏感信息脱敏；
 > - **防远程渗透**：HTTP 服务默认仅允许本机回环访问，需远程时必须配置
 >   `FORGE_HTTP_TOKEN`（Bearer 鉴权）与 `FORGE_HTTP_ALLOWED_ORIGINS`；
 > - **防提权**：`eval` 拦截文件系统/子进程/环境变量等高危注入；
-> - **防 SSRF**：webhook 投递拒绝内网/回环目标。
+> - **防 SSRF**：webhook 投递统一走 `isPrivateOrLoopbackHost()`，拦截私有网段、
+>   回环、IPv6（含 `[::1]`）、**云元数据 `169.254/16`**（防窃取 IAM 凭证）等内网目标。
 
 ## 📄 License
 
