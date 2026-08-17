@@ -2,8 +2,9 @@
   "steps": [
     { "action": "observe", "args": {} },
     { "action": "act", "args": { "type": "navigate", "url": "https://example.com" } },
-    { "action": "act", "args": { "type": "assert", "text": "Example", "mode": "text-contains" } },
+    { "action": "act", "args": { "type": "assert", "selector": "h1", "mode": "text-contains", "expected": "Example" } },
     { "action": "screenshot", "args": { "fullPage": true }, "nonFatal": true }
   ],
-  "artifactDir": "./forge-artifacts"
+  "artifactDir": "./forge-artifacts",
+  "solutionRepoFile": "./solutions-repo.json"
 }

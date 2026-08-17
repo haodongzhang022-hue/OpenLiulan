@@ -21,7 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ForgeMcp } from "../forge-mcp.js";
 import type { ToolResult } from "../tools.js";
-import { RepeatErrorRegistry, matchSolution, SolutionRepository, type SolutionMatch } from "../solutions.js";
+import { RepeatErrorRegistry, matchSolution, SolutionRepository, buildSolutionKnowledgeContext, type SolutionMatch } from "../solutions.js";
 
 /**
  * 供 cnb 端封装为独立进程的 stdio MCP 服务入口。
@@ -270,6 +270,16 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
     ...(solutions.length
       ? ["", `## 自动匹配的解决方案（${solutions.length} 条）`, ...solutions.map((m) => m.advice).filter(Boolean)]
       : []),
+    // 沉淀方案知识注入：让 CI 报告/制品携带已积累方案，供在线/本地 AI 决策引用
+    ...(useRepo && repo && repo.customCount
+      ? [
+          "",
+          "## 项目已沉淀方案（可注入决策上下文）",
+          ...buildSolutionKnowledgeContext(repo, { includeBuiltin: false }).map(
+            (k) => `- **${k.title}**${k.source ? `（来源: ${k.source}）` : ""}: ${k.snippet}`
+          ),
+        ]
+      : []),
   ].join("\n");
 
   if (cfg.persistArtifacts) {
@@ -337,6 +347,8 @@ export interface DebugSessionConfig {
   reportFile?: string;
   /** 是否截图留痕（report 模式默认 true） */
   screenshot?: boolean;
+  /** 可成长解决方案库文件路径（可选）。提供后，调试报告会注入已沉淀方案，供本地/在线 AI 决策引用 */
+  solutionRepoFile?: string;
 }
 
 /**
@@ -400,6 +412,32 @@ export async function runDebugSession(mcp: ForgeMcp, cfg: DebugSessionConfig): P
     snapshotContext: snapshotContext.slice(0, 1500),
     markdown: buildSessionMarkdown(cfg, ok, findings, snapshotContext, screenshotB64),
   };
+
+  // 6.5 沉淀方案知识注入：本地/在线 AI 决策时默认携带项目已积累方案（信息打通）
+  if (cfg.solutionRepoFile) {
+    try {
+      const repo = new SolutionRepository(cfg.solutionRepoFile);
+      if (repo.customCount > 0) {
+        const knowledge = buildSolutionKnowledgeContext(repo, { includeBuiltin: false });
+        const injected = [
+          "",
+          "## 项目已沉淀方案（供决策参考，避免重复造轮子）",
+          ...knowledge.map(
+            (k) => `- **${k.title}**${k.source ? `（来源: ${k.source}）` : ""}: ${k.snippet}`
+          ),
+        ].join("\n");
+        // 插入到报告正文末尾、页脚之前
+        const footerIdx = report.markdown.lastIndexOf("---");
+        report.markdown =
+          report.markdown.slice(0, footerIdx < 0 ? report.markdown.length : footerIdx) +
+          injected +
+          "\n\n" +
+          (footerIdx < 0 ? "" : report.markdown.slice(footerIdx));
+      }
+    } catch {
+      // 方案库不可读时静默，不阻断调试报告生成
+    }
+  }
 
   // 7. 按 owner 投递
   if (owner === "developer-ai") {

@@ -9,6 +9,7 @@ import {
   SOLUTION_PLAYBOOK,
   SolutionRepository,
   exportSolutionRepoMarkdown,
+  buildSolutionKnowledgeContext,
   toPersisted,
   fromPersisted,
 } from "../src/solutions.js";
@@ -226,5 +227,63 @@ describe("可成长解决方案库 SolutionRepository（在线库积累，系统
     const md = exportSolutionRepoMarkdown(repo);
     expect(md).toContain("新方案");
     expect(md).toContain(`共 ${repo.entries.length} 条`);
+  });
+});
+
+describe("沉淀方案 → 决策上下文注入 buildSolutionKnowledgeContext", () => {
+  it("把沉淀方案转为可注入 system prompt 的知识片段", () => {
+    const repo = new SolutionRepository();
+    repo.addSolution({
+      id: "api-rate-limit",
+      fingerprint: "api:rate-limit",
+      title: "后端接口限流（429）",
+      pattern: /429|限流/i,
+      level: "guide",
+      solution: "加指数退避重试；减少并发。",
+      skill: "cnb-pipeline",
+      openSource: "async-retry",
+      source: "my-solution-notes",
+    });
+    const knowledge = buildSolutionKnowledgeContext(repo, { includeBuiltin: false });
+    expect(knowledge.length).toBe(1);
+    const k = knowledge[0];
+    expect(k.title).toContain("限流");
+    expect(k.title).toContain("api:rate-limit");
+    // guide 级别带 skill / 开源项目推荐
+    expect(k.snippet).toContain("cnb-pipeline");
+    expect(k.snippet).toContain("async-retry");
+    expect(k.source).toBe("my-solution-notes");
+  });
+
+  it("默认包含内置 playbook；includeBuiltin:false 仅携带沉淀", () => {
+    const repo = new SolutionRepository();
+    const all = buildSolutionKnowledgeContext(repo);
+    expect(all.length).toBe(SOLUTION_PLAYBOOK.length);
+    const customOnly = buildSolutionKnowledgeContext(repo, { includeBuiltin: false });
+    expect(customOnly.length).toBe(0);
+  });
+
+  it("auto 级别标注可直接执行", () => {
+    const repo = new SolutionRepository();
+    repo.addSolution({
+      id: "fix-base", fingerprint: "f:base", title: "打包 base 错误", pattern: /base/i, level: "auto", solution: "改 Vite base"
+    });
+    const k = buildSolutionKnowledgeContext(repo, { includeBuiltin: false })[0];
+    expect(k.snippet).toContain("可直接执行");
+  });
+
+  it("source 字段随 persist/reload 往返保留", () => {
+    const tmp = "./tmp-test-src-repo.json";
+    try { fs.unlinkSync(tmp); } catch {}
+    const repo = new SolutionRepository(tmp);
+    repo.addSolution({
+      id: "s1", fingerprint: "f:s1", title: "方案1", pattern: /s1/i, level: "auto",
+      solution: "解法", source: "ops-wiki",
+    });
+    repo.persist();
+    const repo2 = new SolutionRepository(tmp);
+    const k = buildSolutionKnowledgeContext(repo2, { includeBuiltin: false })[0];
+    expect(k.source).toBe("ops-wiki");
+    try { fs.unlinkSync(tmp); } catch {}
   });
 });

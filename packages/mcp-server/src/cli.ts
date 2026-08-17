@@ -44,7 +44,7 @@ if (args["harness-schema"]) {
 
 if (args["debug-session"]) {
   // CNB 调试会话：从 JSON 文件读取配置，采集结构化调试报告
-  // 用法: forge-mcp --debug-session ./debug-session.json
+  // 用法: forge-mcp --debug-session ./debug-session.json [--solution-repo ./solutions-repo.json]
   // debug-session.json: { "goal": "...", "url": "...", "owner": "developer-ai", "reportFile": "...", "screenshot": true }
   const specPath = args["debug-session"];
   const fs = await import("node:fs");
@@ -55,6 +55,7 @@ if (args["debug-session"]) {
     owner: cfg.owner ?? "developer-ai",
     reportFile: cfg.reportFile ?? "./forge-debug-report.md",
     screenshot: cfg.screenshot ?? true,
+    solutionRepoFile: args["solution-repo"] ?? cfg.solutionRepoFile,
   });
   await mcp.shutdown();
   process.exit(report.ok ? 0 : 1);
@@ -62,12 +63,15 @@ if (args["debug-session"]) {
 
 if (args["ci-spec"]) {
   // CNB CI/Pipeline 冒烟检查：从 JSON 文件读取步骤并在云端构建机执行
+  // 用法: forge-mcp --ci-spec ./ci-spec.json [--solution-repo ./solutions-repo.json]
+  //   --solution-repo 提供后，启用可成长方案库：错误匹配用内置+沉淀库，未命中新错误记候选，报告注入已沉淀方案
   const specPath = args["ci-spec"];
   const cfg = JSON.parse(await import("node:fs").then((fs) => fs.readFileSync(specPath, "utf8")));
   const result = await runCiCheck(mcp, {
     steps: cfg.steps,
     artifactDir: cfg.artifactDir ?? "./forge-artifacts",
     persistArtifacts: cfg.persistArtifacts ?? true,
+    solutionRepoFile: args["solution-repo"] ?? cfg.solutionRepoFile,
   });
   console.log(result.report);
   await mcp.shutdown();

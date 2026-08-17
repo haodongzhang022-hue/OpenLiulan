@@ -46,6 +46,8 @@ export interface SolutionEntry {
   triggerAfter?: number;
   /** 关键词：用于 fingerprint 判定之外的辅助匹配 */
   keywords?: string[];
+  /** 方案来源标注（默认 solutions-repo；可用于知识上下文溯源） */
+  source?: string;
 }
 
 /** 匹配结果 */
@@ -348,6 +350,8 @@ export interface PersistedSolution {
   openSource?: string;
   triggerAfter?: number;
   keywords?: string[];
+  /** 方案来源标注 */
+  source?: string;
 }
 
 /** 把内置 SolutionEntry 转为可持久化形式 */
@@ -363,6 +367,7 @@ export function toPersisted(entry: SolutionEntry): PersistedSolution {
     openSource: entry.openSource,
     triggerAfter: entry.triggerAfter,
     keywords: entry.keywords,
+    source: entry.source,
   };
 }
 
@@ -379,6 +384,7 @@ export function fromPersisted(p: PersistedSolution): SolutionEntry {
     openSource: p.openSource,
     triggerAfter: p.triggerAfter,
     keywords: p.keywords,
+    source: p.source,
   };
 }
 
@@ -408,6 +414,11 @@ export class SolutionRepository {
   /** 全部方案（内置 + 沉淀） */
   get entries(): SolutionEntry[] {
     return [...this.builtin, ...this.custom];
+  }
+
+  /** 仅用户沉淀的方案（成长库新增部分） */
+  get customEntries(): SolutionEntry[] {
+    return [...this.custom];
   }
 
   /** 加载持久化方案库文件（不存在则忽略） */
@@ -534,4 +545,35 @@ export function exportSolutionRepoMarkdown(repo: SolutionRepository, opts: { tit
     repo.unknownErrors.forEach((u) => lines.push(`- \`${u}\``));
   }
   return lines.join("\n");
+}
+
+/**
+ * 把方案库（内置 + 沉淀）转成「可注入 system prompt 的知识片段」。
+ *
+ * 这是「已沉淀方案 → 决策上下文」的一环：在线 CodeBuddy 与本地 Agent 在
+ * 诊断/规划时，默认携带项目里已经积累的解决方案，避免重复造轮子，也让
+ * 「解决过的问题不再依赖外部检索」贯穿到每一步决策。
+ *
+ * 返回结构与 `buildKnowledgeContext` 的 knowledge 入参一致（title/snippet/source），
+ * 因此可直接拼接到仓库知识库上下文之后，或单独注入。
+ *
+ * @param repo 方案库实例
+ * @param opts.includeBuiltin 是否包含内置 playbook（默认 true）；仅想携带项目沉淀时设为 false
+ */
+export function buildSolutionKnowledgeContext(
+  repo: SolutionRepository,
+  opts: { includeBuiltin?: boolean; source?: string } = {}
+): Array<{ title: string; snippet: string; source?: string }> {
+  const includeBuiltin = opts.includeBuiltin ?? true;
+  const entries = includeBuiltin ? repo.entries : repo.customEntries;
+  const source = opts.source ?? "solutions-repo";
+
+  return entries.map((s) => ({
+    title: `[方案·${s.level}] ${s.title}（指纹 ${s.fingerprint}）`,
+    snippet:
+      s.level === "auto"
+        ? `可直接执行：${s.solution}`
+        : `推荐思路：${s.solution}${s.skill ? `；可用 skill: ${s.skill}` : ""}${s.openSource ? `；可参考: ${s.openSource}` : ""}`,
+    source: s.source ?? source,
+  }));
 }

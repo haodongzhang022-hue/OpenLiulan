@@ -20,6 +20,8 @@ import {
   type DebugMode,
 } from "../src/adapters/harness.js";
 import { okResult, errResult } from "../src/tools.js";
+import { SolutionRepository } from "../src/solutions.js";
+import fs from "node:fs";
 
 describe("CNB 知识库增强", () => {
   it("把知识片段组装成可注入的上下文", () => {
@@ -95,6 +97,36 @@ describe("CNB CI 冒烟 runCiCheck（nonFatal 默认语义 + 二次触发）", (
     });
     // 第 1 步致命失败即终止，第 2 步不执行
     expect(result.steps.length).toBe(1);
+  });
+
+  it("提供 solutionRepoFile 且有沉淀方案时，报告注入已沉淀方案知识", async () => {
+    const mcp = makeFailMcp();
+    const repoFile = "./tmp-ci-repo-test.json";
+    try { fs.unlinkSync(repoFile); } catch {}
+    // 预置一条沉淀方案
+    const seed = new SolutionRepository(repoFile);
+    seed.addSolution({
+      id: "dom-modal-overlay",
+      fingerprint: "dom:modal-overlay",
+      title: "弹窗遮挡导致点击失败",
+      pattern: /遮罩|弹窗|overlay|遮挡/i,
+      level: "guide",
+      solution: "先关闭弹层/遮罩，再执行点击；或用 force:true 穿透。",
+      source: "项目调试记录",
+    });
+    seed.persist();
+
+    const result = await runCiCheck(mcp, {
+      steps: [
+        { action: "act", args: { type: "assert" } },
+        { action: "act", args: { type: "assert" } },
+      ],
+      solutionRepoFile: repoFile,
+    });
+    expect(result.report).toContain("项目已沉淀方案");
+    expect(result.report).toContain("弹窗遮挡导致点击失败");
+    expect(result.report).toContain("沉淀 1 条");
+    try { fs.unlinkSync(repoFile); } catch {}
   });
 });
 

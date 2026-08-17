@@ -17,6 +17,7 @@ import {
   SOLUTION_PLAYBOOK,
   SolutionRepository,
   exportSolutionRepoMarkdown,
+  buildSolutionKnowledgeContext,
 } from "@browser-ai-forge/mcp-server";
 
 function simulateError(registry, text) {
@@ -86,3 +87,15 @@ console.log("沉淀后自定义库规模:", repo.customCount, "→ 方案库已�
 console.log("\n方案库导出预览（前 4 行）:");
 console.log(exportSolutionRepoMarkdown(repo, { title: "项目解决方案库" }).split("\n").slice(0, 4).join("\n"));
 console.log(`方案库共 ${repo.entries.length} 条（内置 ${SOLUTION_PLAYBOOK.length} + 沉淀 ${repo.customCount}）`);
+
+// ===== 场景 5：已沉淀方案 → 决策上下文注入（在线/本地 AI 默认携带积累方案） =====
+console.log("\n===== 场景 5：沉淀方案注入决策上下文（信息打通，避免重复造轮子） =====");
+const knowledge = buildSolutionKnowledgeContext(repo, { includeBuiltin: false });
+console.log(`已把 ${knowledge.length} 条项目沉淀方案转为可注入 system prompt 的知识片段:`);
+for (const k of knowledge) {
+  console.log(`- **${k.title}**（来源: ${k.source}）: ${k.snippet}`);
+}
+console.log(
+  "\n提示: 可经 buildKnowledgeContext(knowledge) 拼接到仓库知识库上下文之后，" +
+    "在线 CodeBuddy 与本地 Agent 决策时默认携带这些积累方案。"
+);
