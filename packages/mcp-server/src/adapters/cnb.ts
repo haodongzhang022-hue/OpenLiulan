@@ -30,6 +30,7 @@ import {
   redactUrl,
   redactText,
   isLoopbackRemote,
+  isPrivateOrLoopbackHost,
   type HttpAuthConfig,
 } from "../security.js";
 
@@ -647,14 +648,8 @@ async function deliverCustom(owner: { channel: string; target?: string }, report
           process.stderr.write(`webhook 投递被拒绝: 仅支持 http/https 协议\n`);
           return;
         }
-        const hostname = u.hostname.toLowerCase();
-        const isPrivate =
-          hostname === "localhost" ||
-          hostname.endsWith(".local") ||
-          /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname) ||
-          /^[0-9a-f:]+$/.test(hostname) ||
-          hostname === "0.0.0.0";
-        if (isPrivate) {
+        // SSRF 防护：用统一函数拦截私有/回环/链路本地/云元数据地址（含 IPv4/IPv6、[::1]、169.254.169.254 等）
+        if (isPrivateOrLoopbackHost(u.hostname)) {
           process.stderr.write(`webhook 投递被拒绝: 不允许内网/回环地址 (${target})\n`);
           return;
         }

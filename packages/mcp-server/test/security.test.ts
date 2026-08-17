@@ -8,6 +8,7 @@ import {
   authorizeHttpRequest,
   guardJsScript,
   httpAuthConfigFromEnv,
+  isPrivateOrLoopbackHost,
   type HttpAuthConfig,
 } from "../src/security.js";
 
@@ -18,6 +19,8 @@ describe("security / isSensitiveKey", () => {
     expect(isSensitiveKey("password")).toBe(true);
     expect(isSensitiveKey("Authorization")).toBe(true);
     expect(isSensitiveKey("api_key")).toBe(true);
+    expect(isSensitiveKey("jwt")).toBe(true);
+    expect(isSensitiveKey("refresh_token")).toBe(true);
   });
   it("会话标识不算敏感", () => {
     expect(isSensitiveKey("sessionId")).toBe(false);
@@ -139,5 +142,44 @@ describe("security / httpAuthConfigFromEnv", () => {
     const cfg = httpAuthConfigFromEnv();
     expect(cfg.loopbackOnly).toBe(true);
     expect(cfg.enabled).toBe(false);
+  });
+});
+
+describe("security / isPrivateOrLoopbackHost (SSRF 防护)", () => {
+  it("拦截 IPv4 回环", () => {
+    expect(isPrivateOrLoopbackHost("127.0.0.1")).toBe(true);
+    expect(isPrivateOrLoopbackHost("127.8.8.8")).toBe(true);
+  });
+  it("拦截 IPv6 回环（含带方括号写法）", () => {
+    expect(isPrivateOrLoopbackHost("::1")).toBe(true);
+    expect(isPrivateOrLoopbackHost("[::1]")).toBe(true); // new URL().hostname 返回带括号
+  });
+  it("拦截云元数据/链路本地 169.254/16（防窃取 IAM 凭证）", () => {
+    expect(isPrivateOrLoopbackHost("169.254.169.254")).toBe(true);
+    expect(isPrivateOrLoopbackHost("169.254.0.1")).toBe(true);
+  });
+  it("拦截私有网段", () => {
+    expect(isPrivateOrLoopbackHost("10.0.0.5")).toBe(true);
+    expect(isPrivateOrLoopbackHost("172.16.0.1")).toBe(true);
+    expect(isPrivateOrLoopbackHost("172.31.255.255")).toBe(true);
+    expect(isPrivateOrLoopbackHost("192.168.1.1")).toBe(true);
+  });
+  it("拦截 CGNAT/保留/组播段", () => {
+    expect(isPrivateOrLoopbackHost("100.64.0.1")).toBe(true);
+    expect(isPrivateOrLoopbackHost("224.0.0.1")).toBe(true);
+    expect(isPrivateOrLoopbackHost("0.0.0.0")).toBe(true);
+  });
+  it("拦截 IPv4-mapped IPv6 回环", () => {
+    expect(isPrivateOrLoopbackHost("::ffff:127.0.0.1")).toBe(true);
+    expect(isPrivateOrLoopbackHost("[::ffff:7f00:1]")).toBe(true);
+  });
+  it("拦截 .local 与 localhost 域名", () => {
+    expect(isPrivateOrLoopbackHost("internal.local")).toBe(true);
+    expect(isPrivateOrLoopbackHost("localhost")).toBe(true);
+  });
+  it("放行公网地址", () => {
+    expect(isPrivateOrLoopbackHost("8.8.8.8")).toBe(false);
+    expect(isPrivateOrLoopbackHost("example.com")).toBe(false);
+    expect(isPrivateOrLoopbackHost("172.32.0.1")).toBe(false);
   });
 });

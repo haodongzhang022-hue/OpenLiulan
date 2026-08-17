@@ -44,6 +44,7 @@ const SENSITIVE_KEYS = [
   "credentials",
   "x-api-key",
   "x-auth-token",
+  "jwt",
 ];
 
 /** 判断字段名是否为敏感字段 */
@@ -272,4 +273,73 @@ export function redactText(raw: string): string {
 /** 汇总入口：对结构化对象做深脱敏，并返回脱敏后的副本 */
 export function sanitize(value: unknown): unknown {
   return redactDeep(value);
+}
+
+/* ===================== SSRF 防护 ===================== */
+
+/**
+ * 判断一个 hostname 是否为「私有/回环/链路本地/云元数据」地址（含 IPv4/IPv6）。
+ * 用于 webhook / 自定义投递等 `fetch(target)` 前的 SSRF 拦截，防止被利用访问内网资源。
+ *
+ * 覆盖场景（真实渗透绕过点，必须覆盖）：
+ * - IPv4 回环 127.0.0.0/8
+ * - IPv6 回环 ::1 及其带方括号写法 [::1]
+ * - 私有网段 10/8、172.16/12、192.168/16
+ * - CGNAT 100.64/10
+ * - 链路本地 / 云元数据 169.254/16（如 AWS 169.254.169.254，可窃取 IAM 凭证）
+ * - IPv4-mapped IPv6 ::ffff:x.x.x.x
+ * - 组播/保留段 224/4、240/4、198.18/15、192.0.0/24
+ * - 全零 0.0.0.0
+ */
+export function isPrivateOrLoopbackHost(hostname: string): boolean {
+  if (!hostname) return false;
+  // 去掉 IPv6 方括号（new URL().hostname 对 [::1] 会保留方括号）
+  let h = hostname.trim().toLowerCase().replace(/^\[|\]$/g, "");
+
+  // 域名：.local 结尾视为内网（mDNS）
+  if (h.endsWith(".local")) return true;
+  if (h === "localhost") return true;
+
+  // IPv6 回环（含 IPv4-mapped ::ffff:127.0.0.1 映射形式）
+  if (h === "::1" || h === "0:0:0:0:0:0:0:1") return true;
+  if (h.startsWith("::ffff:")) {
+    // 把 ::ffff:a.b.c.d 映射回 IPv4 后递归判断
+    const mappedV4 = h.replace(/^::ffff:/, "").replace(/^0*([0-9a-f]{1,4}):0*([0-9a-f]{1,4})$/, (_, a, b) => {
+      const ip = (hex: string) => `${parseInt(hex, 16) >> 8}.${parseInt(hex, 16) & 0xff}`;
+      return `${ip(a)}.${ip(b)}`;
+    });
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(mappedV4)) return isPrivateOrLoopbackHost(mappedV4);
+    return true; // 其他 ::ffff: 形式（如 ::ffff:7f00:1）一律视为内网映射
+  }
+
+  // IPv6 其他本地/链路本地（fc00::/7 ULA、fe80::/10 链路本地）与全零
+  if (h.includes(":") && !h.includes(".")) {
+    if (h === "::" || h === "0:0:0:0:0:0:0:0") return true;
+    if (/^f[cd]/.test(h) || /^fe[89ab]/.test(h)) return true; // ULA / 链路本地
+    // 非全局单播前缀（不以 2 或 3 开头）保守视为内网/保留
+    if (!/^[23][0-9a-f]{3}:/.test(h)) return true;
+    return false;
+  }
+
+  // IPv4 网段判断
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    const c = Number(m[3]);
+    if (a === 10) return true; // 10/8
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16/12
+    if (a === 192 && b === 168) return true; // 192.168/16
+    if (a === 127) return true; // 127/8 回环
+    if (a === 169 && b === 254) return true; // 169.254/16 链路本地/云元数据
+    if (a === 100 && b >= 64 && b <= 127) return true; // 100.64/10 CGNAT
+    if (a === 0 && b === 0 && c === 0) return true; // 0.0.0.0
+    if (a >= 224) return true; // 组播/保留
+    if (a === 198 && (b === 18 || b === 19)) return true; // 198.18/15 基准测试
+    if (a === 192 && b === 0) return true; // 192.0.0/24
+    return false;
+  }
+
+  // 非 IP 域名默认视为公网（交由上游 DNS 解析）
+  return false;
 }
