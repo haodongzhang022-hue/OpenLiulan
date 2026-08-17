@@ -1,6 +1,6 @@
 {
   "name": "@openliulan/core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "核心调度引擎：动作编排、状态机、页面快照",
   "type": "module",
   "main": "dist/index.js",
