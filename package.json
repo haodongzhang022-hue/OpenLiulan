@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=@openliulan/core --workspace=@openliulan/diagnosis --workspace=@openliulan/token --workspace=@openliulan/ai-layer --workspace=@openliulan/engines --workspace=@openliulan/mcp-server",
+    "build": "npm run build --workspace=@openliulan/core --workspace=@openliulan/diagnosis --workspace=@openliulan/token --workspace=@openliulan/ai-layer --workspace=@openliulan/engines --workspace=@openliulan/scripting --workspace=@openliulan/mcp-server",
     "test": "vitest run",
     "lint": "npm run lint --workspaces --if-present",
     "dev": "node examples/quickstart.mjs"
