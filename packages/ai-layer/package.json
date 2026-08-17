@@ -1,6 +1,6 @@
 {
   "name": "@openliulan/ai-layer",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "AI 语义层：自然语言 -> 动作规划、语义定位、意图解析",
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@openliulan/core": "0.1.0"
+    "@openliulan/core": "1.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

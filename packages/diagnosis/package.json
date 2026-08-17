@@ -1,6 +1,6 @@
 {
   "name": "@openliulan/diagnosis",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "5 星调试诊断中心：DOM / 网络 / 控制台 / 性能 / JS 异常全链路诊断",
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@openliulan/core": "0.1.0"
+    "@openliulan/core": "1.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
