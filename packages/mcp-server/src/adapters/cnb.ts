@@ -21,6 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ForgeMcp } from "../forge-mcp.js";
 import type { ToolResult } from "../tools.js";
+import { buildAIMessage, messageToContent } from "../message.js";
 import { RepeatErrorRegistry, matchSolution, SolutionRepository, buildSolutionKnowledgeContext, type SolutionMatch } from "../solutions.js";
 
 /**
@@ -69,8 +70,16 @@ async function handleMessage(mcp: ForgeMcp, msg: any) {
   if (method === "tools/call") {
     try {
       const result: ToolResult = await mcp.callTool(params.name, params.arguments || {});
+      // 用 AI 协作消息协议序列化：text + image（截图）+ 事件流，让外部 AI 拿到完整上下文
+      const events = (result.structured as any)?.events ?? [];
+      const msg = buildAIMessage({
+        ok: result.ok,
+        text: result.content?.[0]?.text ?? "",
+        events,
+        structured: result.structured as Record<string, unknown>,
+      });
       respond(id, {
-        content: result.content,
+        content: messageToContent(msg),
         isError: result.isError,
         structured: result.structured,
       });
