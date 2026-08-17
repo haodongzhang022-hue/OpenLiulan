@@ -19,9 +19,40 @@ import {
   type AgentTurn,
   type DebugMode,
 } from "../src/adapters/harness.js";
-import { okResult, errResult } from "../src/tools.js";
+import { okResult, errResult, TOOLS } from "../src/tools.js";
 import { SolutionRepository } from "../src/solutions.js";
+import { createCnbHttpServer } from "../src/adapters/cnb.js";
 import fs from "node:fs";
+import http from "node:http";
+
+/** 发送一个 JSON POST 请求到测试服务器 */
+function postJson(port: number, path: string, body: unknown): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = http.request(
+      { host: "127.0.0.1", port, path, method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data) } },
+      (res) => {
+        let buf = "";
+        res.on("data", (c) => (buf += c));
+        res.on("end", () => resolve({ status: res.statusCode, body: JSON.parse(buf || "{}") }));
+      }
+    );
+    req.on("error", reject);
+    req.write(data);
+    req.end();
+  });
+}
+
+/** 获取一个随机空闲端口 */
+async function freePort(): Promise<number> {
+  return new Promise((resolve) => {
+    const srv = http.createServer();
+    srv.listen(0, () => {
+      const port = (srv.address() as any).port;
+      srv.close(() => resolve(port));
+    });
+  });
+}
 
 describe("CNB 知识库增强", () => {
   it("把知识片段组装成可注入的上下文", () => {
@@ -171,6 +202,22 @@ describe("harness 工具映射", () => {
     const r = errResult("未知工具");
     expect(r.ok).toBe(false);
     expect(r.isError).toBe(true);
+  });
+
+  it("act 工具 schema 完整声明动作参数（IDE function calling 能力不被隐藏）", () => {
+    const fakeMcp: any = {
+      tools: TOOLS,
+      callTool: async () => okResult("ok"),
+    };
+    const schemas = buildHarnessFunctionSchemas(fakeMcp);
+    const actSchema = schemas.find((s: any) => s.function.name === "act");
+    const props = actSchema.function.parameters.properties;
+    // 动作细节参数必须完整暴露，供 IDE / harness 的 function calling 声明
+    for (const p of ["fullPage", "deltaY", "delay", "waitUntil", "waitForNavigation", "url", "value", "key", "ms", "script", "mode", "expected", "ref", "selector", "text", "semantic"]) {
+      expect(props[p], `act schema 应包含参数 ${p}`).toBeDefined();
+    }
+    // 工具列表完整
+    expect(schemas.map((s: any) => s.function.name)).toEqual(["observe", "act", "diagnose", "eval", "screenshot", "session_log", "close"]);
   });
 });
 
@@ -513,5 +560,63 @@ describe("buildSessionMarkdown", () => {
     );
     expect(md).toContain("✅");
     expect(md).toContain("未发现明确问题");
+  });
+});
+
+describe("HTTP 服务 /tools/call 截图序列化（与 stdio 一致）", () => {
+  it("截图结果序列化为标准 MCP image content 块（供多模态 AI 消费）", async () => {
+    // 构造一个假 mcp：callTool 返回带截图 base64 与事件流的 ToolResult
+    const fakeMcp: any = {
+      tools: [
+        { name: "screenshot", description: "截图", inputSchema: { type: "object", properties: {} } },
+      ],
+      callTool: async (name: string) => {
+        if (name === "screenshot") {
+          return okResult("已截图 (12KB)", {
+            image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==",
+            events: [
+              {
+                seq: 1, ts: Date.now(), level: "info", category: "screenshot",
+                message: "首页截图", image: { dataUri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==", byteLength: 100, fullPage: true, caption: "首页截图" },
+              },
+            ],
+            sessionId: "sess_test",
+          });
+        }
+        return okResult("ok");
+      },
+    };
+
+    const port = await freePort();
+    const server = createCnbHttpServer(fakeMcp, port);
+    try {
+      const res = await postJson(port, "/tools/call", { name: "screenshot", arguments: { fullPage: true } });
+      expect(res.status).toBe(200);
+      // 标准 MCP content 含 text + image 两个块
+      const content = res.body.content;
+      expect(content.some((c: any) => c.type === "image" && c.data === "iVBORw0KGgoAAAANSUhEUg==" && c.mimeType === "image/png")).toBe(true);
+      expect(content.some((c: any) => c.type === "text")).toBe(true);
+      // 结构化数据保留（供非多模态客户端用）
+      expect(res.body.structured?.sessionId).toBe("sess_test");
+    } finally {
+      server.close();
+    }
+  });
+
+  it("文本工具（observe）保持文本响应", async () => {
+    const fakeMcp: any = {
+      tools: [{ name: "observe", description: "观察", inputSchema: { type: "object", properties: {} } }],
+      callTool: async () => okResult("# 页面: Test\n- ref=r1 <button> \"Go\""),
+    };
+    const port = await freePort();
+    const server = createCnbHttpServer(fakeMcp, port);
+    try {
+      const res = await postJson(port, "/tools/call", { name: "observe", arguments: {} });
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.content.some((c: any) => c.type === "text" && c.text.includes("Test"))).toBe(true);
+    } finally {
+      server.close();
+    }
   });
 });

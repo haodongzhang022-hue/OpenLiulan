@@ -157,6 +157,22 @@ curl -X POST http://localhost:8787/tools/call \
   -d '{"name":"observe","arguments":{}}'
 ```
 
+> **HTTP 与 stdio 行为一致**：HTTP 的 `/tools/call` 同样走 `AIMessage` 协议序列化，
+> 截图结果会输出标准的 MCP `image` content 块（`{type:"image", data, mimeType}`），
+> 供多模态 IDE / AI 直接消费——与 stdio 一致，不再需要外部自行从 `structured.image` 解析。
+
+### MCP 工具 schema（供 IDE / harness 的 function calling 完整声明）
+
+`act` 工具已在 schema 中**完整声明所有动作参数**（`fullPage` / `deltaY` / `delay` /
+`waitUntil` / `waitForNavigation` 等），避免 IDE 的 function calling 因参数未声明而
+**隐藏能力**。`buildHarnessFunctionSchemas` 输出的 OpenAI 兼容 schema 可直接注入 IDE / harness。
+
+```ts
+import { ForgeMcp, buildHarnessFunctionSchemas } from "@browser-ai-forge/mcp-server";
+const schemas = buildHarnessFunctionSchemas(new ForgeMcp());
+// schemas 完整暴露 observe / act / diagnose / eval / screenshot / session_log / close
+```
+
 ### 方式 3：CNB CI/Pipeline 冒烟检查（发挥 cnb 云端构建能力）
 
 这是「单靠 HTTP 接口做不到」的端到端增强：让 Forge 作为 `.cnb.yml` 里的一个 step

@@ -128,8 +128,23 @@ export function createCnbHttpServer(mcp: ForgeMcp, port = 8787) {
         for await (const chunk of req) body += chunk;
         const { name, arguments: args } = JSON.parse(body || "{}");
         const result = await mcp.callTool(name, args || {});
+        // 与 stdio 保持一致：用 AI 协作消息协议序列化（text + image + 事件流），
+        // 让 HTTP 对接的 IDE / 外部 AI 同样拿到标准的 image content 块（截图可被多模态 AI 消费）
+        const events = (result.structured as any)?.events ?? [];
+        const msg = buildAIMessage({
+          ok: result.ok,
+          text: result.content?.[0]?.text ?? "",
+          events,
+          structured: result.structured as Record<string, unknown>,
+        });
+        const payload = {
+          ok: result.ok,
+          content: messageToContent(msg),
+          isError: result.isError,
+          structured: result.structured,
+        };
         res.writeHead(result.isError ? 500 : 200);
-        res.end(JSON.stringify(result));
+        res.end(JSON.stringify(payload));
         return;
       }
       res.writeHead(404);

@@ -33,6 +33,7 @@ describe("错误指纹归一化 fingerprintError", () => {
 
   it("识别 DOM 定位失败", () => {
     expect(fingerprintError("未找到元素 ref=r3")).toBe("dom:locator-failed");
+    expect(fingerprintError("断言失败：未找到目标元素")).toBe("dom:locator-failed");
     expect(fingerprintError("element not found")).toBe("dom:locator-failed");
     // 真实浏览器实际报错文本：无法定位元素（真实验收暴露的缺陷回归）
     expect(fingerprintError("✗ 动作执行失败: 无法定位元素：ref=- selector=- text=按钮XYZ semantic=-. 建议调用 observe() 获取最新快照后重试")).toBe("dom:locator-failed");

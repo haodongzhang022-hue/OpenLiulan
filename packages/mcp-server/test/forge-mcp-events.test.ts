@@ -46,4 +46,23 @@ describe("ForgeMcp AI 协作集成", () => {
     expect(res.isError).toBe(true);
     expect((res.structured as any)?.sessionId).toBeTruthy();
   });
+
+  it("mapErrorReason 识别中文'无法定位元素'为 locator-not-found（与 fingerprintError 对齐）", async () => {
+    const mcp = new ForgeMcp({ logger: new SessionLogger() });
+    const map = (mcp as any).mapErrorReason.bind(mcp);
+    // 真实引擎 locator.ts 抛出的错误信息以"无法定位元素"开头
+    expect(map("动作执行失败: 无法定位元素：ref=- selector=- text=按钮XYZ semantic=-. 建议调用 observe() 获取最新快照后重试")).toBe("locator-not-found");
+    expect(map("动作执行失败: 未找到元素 r3")).toBe("locator-not-found");
+    expect(map("断言失败：未找到目标元素")).toBe("locator-not-found");
+    expect(map("操作超时，元素未就绪")).toBe("timeout");
+    expect(map("请求失败 GET /api 404")).toBe("network-failure");
+  });
+
+  it("buildExplanation 对无法定位元素给出可行动解释与建议", async () => {
+    const mcp = new ForgeMcp({ logger: new SessionLogger() });
+    const m = mcp as any;
+    const expl = m.buildExplanation("动作执行失败: 无法定位元素：text=按钮XYZ");
+    expect(expl).toContain("页面中未找到目标元素");
+    expect(m.buildSuggestion("无法定位元素：text=按钮XYZ")).toContain("切换定位策略");
+  });
 });

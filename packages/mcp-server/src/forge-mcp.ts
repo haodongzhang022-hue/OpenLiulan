@@ -238,7 +238,7 @@ export class ForgeMcp {
     const s = summary.toLowerCase();
     if (s.includes("timeout") || s.includes("超时")) return "timeout";
     if (s.includes("404") || s.includes("500") || s.includes("network") || s.includes("网络")) return "network-failure";
-    if (s.includes("not found") || s.includes("找不到") || s.includes("locator")) return "locator-not-found";
+    if (s.includes("not found") || s.includes("找不到") || s.includes("无法定位") || s.includes("未找到") || s.includes("locator")) return "locator-not-found";
     if (diagnostics?.some((d) => d.kind === "js-exception")) return "js-exception";
     if (diagnostics?.some((d) => d.kind === "dom")) return "dom-unrendered";
     return "action-failed";
@@ -295,7 +295,7 @@ export class ForgeMcp {
     if (args.semantic) loc.semantic = args.semantic;
 
     const rest: Record<string, unknown> = {};
-    for (const k of ["url", "value", "key", "ms", "script", "mode", "expected", "fullPage", "deltaY", "delay", "waitUntil"]) {
+    for (const k of ["url", "value", "key", "ms", "script", "mode", "expected", "fullPage", "deltaY", "delay", "waitUntil", "waitForNavigation"]) {
       if (args[k] !== undefined) rest[k] = args[k];
     }
     return { ...base, ...loc, ...rest };
