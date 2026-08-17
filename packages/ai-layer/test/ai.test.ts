@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { locateBySemantic, snapshotToPrompt, buildPlannerSystemPrompt } from "@browser-ai-forge/ai-layer";
-import type { PageSnapshot } from "@browser-ai-forge/core";
+import { locateBySemantic, snapshotToPrompt, buildPlannerSystemPrompt } from "@openliulan/ai-layer";
+import type { PageSnapshot } from "@openliulan/core";
 
 const snap: PageSnapshot = {
   url: "https://example.com",

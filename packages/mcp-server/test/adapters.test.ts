@@ -174,7 +174,7 @@ describe("CNB CI 评论", () => {
       artifacts: ["forge-artifacts/step-1.png"],
       report: "# Forge CI 冒烟检查 ✅ 通过",
     });
-    expect(md).toContain("Browser AI Forge");
+    expect(md).toContain("OpenLiulan");
     expect(md).toContain("✅ 通过");
   });
 });

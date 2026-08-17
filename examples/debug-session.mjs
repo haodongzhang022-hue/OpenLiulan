@@ -10,7 +10,7 @@
  * 运行前需安装浏览器: npx playwright install chromium
  * 运行: node examples/debug-session.mjs
  */
-import { ForgeMcp, runDebugSession } from "@browser-ai-forge/mcp-server";
+import { ForgeMcp, runDebugSession } from "@openliulan/mcp-server";
 
 async function main() {
   const mcp = new ForgeMcp({ headless: true });

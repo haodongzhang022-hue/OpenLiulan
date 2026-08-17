@@ -2,7 +2,7 @@
  * 语义定位器：把自然语言描述转成结构化的定位参数。
  * 借鉴 Stagehand 的 AI Locator 与 Browser-Use 的语义定位。
  */
-import type { PageSnapshot } from "@browser-ai-forge/core";
+import type { PageSnapshot } from "@openliulan/core";
 
 export interface SemanticLocateResult {
   /** 命中的快照引用 */

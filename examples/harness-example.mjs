@@ -4,8 +4,8 @@
  * 演示如何把 Forge MCP 工具接入 deepseek harness 的函数调用循环。
  * harness 端拿到 tools schema 后做 function calling，本示例展示注册方式。
  */
-import { ForgeMcp } from "@browser-ai-forge/mcp-server";
-import { buildHarnessFunctionSchemas, toHarnessTools } from "@browser-ai-forge/mcp-server";
+import { ForgeMcp } from "@openliulan/mcp-server";
+import { buildHarnessFunctionSchemas, toHarnessTools } from "@openliulan/mcp-server";
 
 export function createHarnessTools() {
   const mcp = new ForgeMcp({ headless: true });

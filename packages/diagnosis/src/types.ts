@@ -8,7 +8,7 @@
  * 4. 性能指标
  * 5. JS 异常与堆栈
  */
-import type { DiagnosticRef } from "@browser-ai-forge/core";
+import type { DiagnosticRef } from "@openliulan/core";
 
 export type DiagnosticCategory = "console" | "network" | "dom" | "performance" | "js-exception" | "accessibility";
 

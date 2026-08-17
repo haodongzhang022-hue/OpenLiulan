@@ -59,7 +59,7 @@ async function handleMessage(mcp: ForgeMcp, msg: any) {
     respond(id, {
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
-      serverInfo: { name: "browser-ai-forge", version: "0.1.0" },
+      serverInfo: { name: "openliulan", version: "0.1.0" },
     });
     return;
   }
@@ -339,7 +339,7 @@ export function toPrComment(result: CiCheckResult): string {
     result.report,
     "",
     "---",
-    `_由 Browser AI Forge 自动生成 | 制品 ${result.artifacts.length} 个 | 耗时见 CI 日志_`,
+    `_由 OpenLiulan 自动生成 | 制品 ${result.artifacts.length} 个 | 耗时见 CI 日志_`,
   ].join("\n");
 }
 
@@ -562,7 +562,7 @@ export function buildSessionMarkdown(
   if (screenshotB64) {
     lines.push("", "![页面截图](./forge-debug-screenshot.png)");
   }
-  lines.push("", "---", "_由 Browser AI Forge 调试会话生成_", `_Owner: ${cfg.owner ?? "developer-ai"}_`);
+  lines.push("", "---", "_由 OpenLiulan 调试会话生成_", `_Owner: ${cfg.owner ?? "developer-ai"}_`);
   return lines.join("\n");
 }
 

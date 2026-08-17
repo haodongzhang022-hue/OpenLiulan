@@ -4,10 +4,10 @@
  * 内部实现工具分发逻辑。上层可用不同的传输层（stdio/HTTP/SSE）包装，
  * 使其可接入 deepseek harness、cnb.cool、Claude Desktop 等任意 MCP 客户端。
  */
-import { ForgeBrowser } from "@browser-ai-forge/core";
-import { PlaywrightEngine } from "@browser-ai-forge/engines";
-import { DiagnosisCenter } from "@browser-ai-forge/diagnosis";
-import { compactSnapshot } from "@browser-ai-forge/token";
+import { ForgeBrowser } from "@openliulan/core";
+import { PlaywrightEngine } from "@openliulan/engines";
+import { DiagnosisCenter } from "@openliulan/diagnosis";
+import { compactSnapshot } from "@openliulan/token";
 import { TOOLS, okResult, errResult, type ToolResult, type McpToolSchema } from "./tools.js";
 import { SessionLogger } from "./logger.js";
 import { buildAIMessage, messageToContent, type AIMessage } from "./message.js";
@@ -111,7 +111,7 @@ export class ForgeMcp {
           const b = await this.ensureBrowser();
           const report = await b.captureDiagnostics();
           // 用 diagnosis 中心生成摘要（core 与 diagnosis 的报告类型已对齐，无需强转）
-          const { summarize } = await import("@browser-ai-forge/diagnosis");
+          const { summarize } = await import("@openliulan/diagnosis");
           const summary = summarize(report);
           const lines = [`# 诊断结果 (${summary.healthy ? "健康" : "存在问题"})`];
           if (summary.issues.length === 0) {

@@ -11,8 +11,8 @@
  * 这是 CI 中强制执行的真实网页验收，必须真实通过。
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PlaywrightEngine } from "@browser-ai-forge/engines";
-import { ForgeBrowser } from "@browser-ai-forge/core";
+import { PlaywrightEngine } from "@openliulan/engines";
+import { ForgeBrowser } from "@openliulan/core";
 
 // 真实浏览器测试涉及真实网络导航（example.com / iana.org 等），
 // 运行时受网络波动影响较大（实测单用例可达 5.5s+，超出 vitest 默认 5s 超时），

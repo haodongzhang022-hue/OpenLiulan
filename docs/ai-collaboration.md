@@ -39,7 +39,7 @@ interface ForgeEvent {
 ### 用法
 
 ```ts
-import { ForgeMcp, SessionLogger } from "@browser-ai-forge/mcp-server";
+import { ForgeMcp, SessionLogger } from "@openliulan/mcp-server";
 
 const logger = new SessionLogger();          // 自动生成 sessionId
 const unsub = logger.subscribe((e) => console.log(e.message));  // 实时订阅
@@ -122,7 +122,7 @@ interface ForgeErrorEvent {
 把事件流聚合成**外部 AI 可直接消费的一条消息**，同时携带文本、图片、错误、日志轨迹：
 
 ```ts
-import { buildAIMessage, messageToContent } from "@browser-ai-forge/mcp-server";
+import { buildAIMessage, messageToContent } from "@openliulan/mcp-server";
 
 const msg = buildAIMessage({
   ok: false,

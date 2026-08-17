@@ -22,7 +22,7 @@
 deepseek harness 通过 **function calling** 与工具交互。Forge 提供 OpenAI 兼容的函数 schema：
 
 ```ts
-import { ForgeMcp, buildHarnessFunctionSchemas, toHarnessTools } from "@browser-ai-forge/mcp-server";
+import { ForgeMcp, buildHarnessFunctionSchemas, toHarnessTools } from "@openliulan/mcp-server";
 
 const mcp = new ForgeMcp({ headless: true });
 
@@ -51,7 +51,7 @@ const tools = toHarnessTools(mcp);
 用户可指定 Agent 的角色：
 
 ```ts
-import { ForgeMcp, toHarnessTools, runAgentLoop } from "@browser-ai-forge/mcp-server";
+import { ForgeMcp, toHarnessTools, runAgentLoop } from "@openliulan/mcp-server";
 
 const mcp = new ForgeMcp({ headless: true });
 const tools = toHarnessTools(mcp);
@@ -168,7 +168,7 @@ curl -X POST http://localhost:8787/tools/call \
 **隐藏能力**。`buildHarnessFunctionSchemas` 输出的 OpenAI 兼容 schema 可直接注入 IDE / harness。
 
 ```ts
-import { ForgeMcp, buildHarnessFunctionSchemas } from "@browser-ai-forge/mcp-server";
+import { ForgeMcp, buildHarnessFunctionSchemas } from "@openliulan/mcp-server";
 const schemas = buildHarnessFunctionSchemas(new ForgeMcp());
 // schemas 完整暴露 observe / act / diagnose / eval / screenshot / session_log / close
 ```
@@ -206,7 +206,7 @@ npx forge-mcp --ci-spec ./ci-spec.json
 解决调试问题：**让开发 AI 拿到直接观察到的、可行动的调试信息**，而不是隔着代码猜测。
 
 ```ts
-import { ForgeMcp, runDebugSession } from "@browser-ai-forge/mcp-server";
+import { ForgeMcp, runDebugSession } from "@openliulan/mcp-server";
 
 const mcp = new ForgeMcp({ headless: true });
 
@@ -237,7 +237,7 @@ CNB 独有的「仓库知识库」能力可被用来给 AI 决策带上项目语
 （URL 约定、测试账号、页面结构、已知坑），让诊断/规划更精准：
 
 ```ts
-import { buildKnowledgeContext } from "@browser-ai-forge/mcp-server";
+import { buildKnowledgeContext } from "@openliulan/mcp-server";
 
 const ctx = buildKnowledgeContext([
   { title: "登录流程", snippet: "测试账号 / 内网域名约定", source: "docs/" },
@@ -264,7 +264,7 @@ import {
   matchSolution,
   fingerprintError,
   SOLUTION_PLAYBOOK,
-} from "@browser-ai-forge/mcp-server";
+} from "@openliulan/mcp-server";
 
 const registry = new RepeatErrorRegistry(); // 默认阈值 2
 
@@ -311,7 +311,7 @@ console.log(result.solutions); // 触发的解决方案列表
   实现团队共享与版本化。
 
 ```ts
-import { SolutionRepository, RepeatErrorRegistry, exportSolutionRepoMarkdown } from "@browser-ai-forge/mcp-server";
+import { SolutionRepository, RepeatErrorRegistry, exportSolutionRepoMarkdown } from "@openliulan/mcp-server";
 
 const repo = new SolutionRepository("./solutions-repo.json"); // 加载已有沉淀
 const reg = new RepeatErrorRegistry();
@@ -358,7 +358,7 @@ const result = await runCiCheck(mcp, {
 ```ts
 import {
   SolutionRepository, buildSolutionKnowledgeContext, buildKnowledgeContext,
-} from "@browser-ai-forge/mcp-server";
+} from "@openliulan/mcp-server";
 
 const repo = new SolutionRepository("./solutions-repo.json"); // 加载已沉淀方案
 // ① 把沉淀方案转为知识片段（仅沉淀部分，避免重复注入内置基线）

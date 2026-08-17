@@ -1,6 +1,6 @@
-# Browser AI Forge 依赖说明
+# OpenLiulan 依赖说明
 
-> 本文档完整说明 **Browser AI Forge** 的运行环境、直接依赖、内部 Workspace 依赖、
+> 本文档完整说明 **OpenLiulan** 的运行环境、直接依赖、内部 Workspace 依赖、
 > 安装步骤、DeepSeek Harness 集成依赖以及实测验证版本，方便用户克隆后开箱即用。
 
 ---
@@ -24,8 +24,8 @@
 
 | 包 | 版本 | 所属模块 | 作用 |
 | :--- | :--- | :--- | :--- |
-| `playwright` | `^1.45.0`（当前锁定 1.62.1） | `@browser-ai-forge/engines` | 浏览器启动、CDP 连接、DOM 操作、导航、点击、输入、截图和断言等底层浏览器自动化能力。 |
-| `zod` | `^3.23.0` | `@browser-ai-forge/core` | 浏览器统一动作、输入参数与核心数据结构的运行时校验。 |
+| `playwright` | `^1.45.0`（当前锁定 1.62.1） | `@openliulan/engines` | 浏览器启动、CDP 连接、DOM 操作、导航、点击、输入、截图和断言等底层浏览器自动化能力。 |
+| `zod` | `^3.23.0` | `@openliulan/core` | 浏览器统一动作、输入参数与核心数据结构的运行时校验。 |
 
 ### 2.2 开发与构建依赖
 
@@ -39,24 +39,24 @@
 
 ## 3. 内部 Workspace 依赖关系
 
-项目是 npm workspace，以下 `@browser-ai-forge/*` 都是**仓库内部包**，
+项目是 npm workspace，以下 `@openliulan/*` 都是**仓库内部包**，
 不需要分别从 npm 发布源安装：
 
 ```text
-@browser-ai-forge/mcp-server
-├── @browser-ai-forge/core
-├── @browser-ai-forge/engines
-├── @browser-ai-forge/diagnosis
-├── @browser-ai-forge/token
-└── @browser-ai-forge/ai-layer
+@openliulan/mcp-server
+├── @openliulan/core
+├── @openliulan/engines
+├── @openliulan/diagnosis
+├── @openliulan/token
+└── @openliulan/ai-layer
 
-@browser-ai-forge/engines
-├── @browser-ai-forge/core
-├── @browser-ai-forge/diagnosis
-├── @browser-ai-forge/ai-layer
+@openliulan/engines
+├── @openliulan/core
+├── @openliulan/diagnosis
+├── @openliulan/ai-layer
 └── playwright
 
-@browser-ai-forge/core
+@openliulan/core
 └── zod
 ```
 
@@ -64,12 +64,12 @@
 
 | 模块 | 职责 |
 | :--- | :--- |
-| `@browser-ai-forge/core` | 动作模型、状态协调、浏览器门面、页面快照抽象。 |
-| `@browser-ai-forge/engines` | Playwright/CDP 浏览器驱动、DOM 定位、快照、诊断采集。 |
-| `@browser-ai-forge/diagnosis` | 控制台、网络、JS 异常、性能和 DOM 的结构化诊断。 |
-| `@browser-ai-forge/token` | DOM 精简、快照压缩与 Token 控制策略。 |
-| `@browser-ai-forge/ai-layer` | 语义元素定位、自然语言动作规划辅助。 |
-| `@browser-ai-forge/mcp-server` | 把 Forge 能力暴露为 stdio MCP、HTTP 服务、CI 冒烟测试 CLI。 |
+| `@openliulan/core` | 动作模型、状态协调、浏览器门面、页面快照抽象。 |
+| `@openliulan/engines` | Playwright/CDP 浏览器驱动、DOM 定位、快照、诊断采集。 |
+| `@openliulan/diagnosis` | 控制台、网络、JS 异常、性能和 DOM 的结构化诊断。 |
+| `@openliulan/token` | DOM 精简、快照压缩与 Token 控制策略。 |
+| `@openliulan/ai-layer` | 语义元素定位、自然语言动作规划辅助。 |
+| `@openliulan/mcp-server` | 把 Forge 能力暴露为 stdio MCP、HTTP 服务、CI 冒烟测试 CLI。 |
 
 ---
 
@@ -104,7 +104,7 @@ npx playwright install chromium
 | 依赖 | 用途 |
 | :--- | :--- |
 | `@deepseek-ai/dsh-mcp-client` | 负责启动 stdio MCP 子进程、发现 MCP tools，并注册到 DSH 工具列表。 |
-| 已构建的 `@browser-ai-forge/mcp-server` | MCP Server 的实际启动入口。 |
+| 已构建的 `@openliulan/mcp-server` | MCP Server 的实际启动入口。 |
 | Node.js 可执行文件 | Harness 启动 forge-mcp stdio 子进程时使用。 |
 | Playwright Chromium | MCP 服务实际控制浏览器时使用。 |
 
@@ -112,7 +112,7 @@ Harness 中的配置核心如下：
 
 ```yaml
 insert:
-  id: browser-ai-forge-mcp
+  id: openliulan-mcp
   name: '@deepseek-ai/dsh-mcp-client'
   config:
     serverName: forge

@@ -445,7 +445,7 @@ export class SolutionRepository {
     const data: SolutionRepoFile = {
       entries: this.custom.map(toPersisted),
       unknownErrors: [...this.unknown],
-      meta: { updatedAt: new Date().toISOString(), source: "browser-ai-forge" },
+      meta: { updatedAt: new Date().toISOString(), source: "openliulan" },
     };
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, JSON.stringify(data, null, 2), "utf8");

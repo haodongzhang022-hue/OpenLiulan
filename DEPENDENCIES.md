@@ -1,4 +1,4 @@
-# Browser AI Forge 依赖说明
+# OpenLiulan 依赖说明
 
 > 独立依赖说明，克隆仓库后请以此为准准备运行环境与依赖。
 > 完整文档见 [docs/dependencies.md](docs/dependencies.md)。
@@ -29,8 +29,8 @@ npx playwright install chromium
 
 | 包 | 版本 | 所属模块 | 作用 |
 | :--- | :--- | :--- | :--- |
-| `playwright` | `^1.45.0`（锁定 1.62.1） | `@browser-ai-forge/engines` | 浏览器启动、CDP 连接、DOM 操作、导航、点击、输入、截图和断言等底层浏览器自动化。 |
-| `zod` | `^3.23.0` | `@browser-ai-forge/core` | 统一动作、输入参数与核心数据结构的运行时校验。 |
+| `playwright` | `^1.45.0`（锁定 1.62.1） | `@openliulan/engines` | 浏览器启动、CDP 连接、DOM 操作、导航、点击、输入、截图和断言等底层浏览器自动化。 |
+| `zod` | `^3.23.0` | `@openliulan/core` | 统一动作、输入参数与核心数据结构的运行时校验。 |
 
 ## 开发与构建依赖
 
@@ -42,23 +42,23 @@ npx playwright install chromium
 
 ## 内部 Workspace 依赖
 
-`@browser-ai-forge/*` 均为仓库内部包，由 `npm install` 自动关联，**无需单独安装**：
+`@openliulan/*` 均为仓库内部包，由 `npm install` 自动关联，**无需单独安装**：
 
 ```text
-@browser-ai-forge/mcp-server
-├── @browser-ai-forge/core
-├── @browser-ai-forge/engines
-├── @browser-ai-forge/diagnosis
-├── @browser-ai-forge/token
-└── @browser-ai-forge/ai-layer
+@openliulan/mcp-server
+├── @openliulan/core
+├── @openliulan/engines
+├── @openliulan/diagnosis
+├── @openliulan/token
+└── @openliulan/ai-layer
 
-@browser-ai-forge/engines
-├── @browser-ai-forge/core
-├── @browser-ai-forge/diagnosis
-├── @browser-ai-forge/ai-layer
+@openliulan/engines
+├── @openliulan/core
+├── @openliulan/diagnosis
+├── @openliulan/ai-layer
 └── playwright
 
-@browser-ai-forge/core
+@openliulan/core
 └── zod
 ```
 
@@ -81,6 +81,6 @@ Chromium:   Playwright Chromium v1234
 
 ## DeepSeek Harness 集成
 
-集成 DSH 需要 `@deepseek-ai/dsh-mcp-client`、已构建的 `@browser-ai-forge/mcp-server`、
+集成 DSH 需要 `@deepseek-ai/dsh-mcp-client`、已构建的 `@openliulan/mcp-server`、
 可访问的 Node.js 与 Playwright Chromium。完整 Harness 配置示例见
 [docs/dependencies.md](docs/dependencies.md#5-deepseek-harness-集成额外依赖)。

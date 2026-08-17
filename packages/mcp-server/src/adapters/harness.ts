@@ -27,7 +27,7 @@
  */
 import type { ForgeMcp } from "../forge-mcp.js";
 import type { ToolResult } from "../tools.js";
-import { snapshotToPrompt } from "@browser-ai-forge/ai-layer";
+import { snapshotToPrompt } from "@openliulan/ai-layer";
 import {
   RepeatErrorRegistry,
   matchSolution,
