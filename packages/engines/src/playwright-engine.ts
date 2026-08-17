@@ -91,16 +91,30 @@ export class PlaywrightEngine implements BrowserEngine {
           text: action.text,
           semantic: action.semantic,
         });
+        // 点击可能触发页面导航（如点击<a>链接跳转）。
+        // 只有点击目标是链接时才等待新页面加载，避免普通按钮无谓等待导航超时。
+        const waitForNavigation = action.waitForNavigation ?? true;
+        const isLink = await locator
+          .evaluate((el) => el.tagName.toLowerCase() === "a" && !!el.getAttribute("href"))
+          .catch(() => false);
+        const navPromise =
+          waitForNavigation && isLink
+            ? this.page
+                .waitForNavigation({ waitUntil: "load", timeout: 15_000 })
+                .catch(() => null) // 未触发导航时静默忽略
+            : null;
         await locator.click({
           button: action.button,
           clickCount: action.clickCount,
           force: action.force,
           timeout: 15_000,
         });
+        // 若点击链接触发了导航，则等待其完成后再返回，保证后续操作面对稳定页面
+        if (navPromise) await navPromise;
         return {
           ok: true,
           type: "click",
-          summary: `已点击（策略=${strategy} 锚点=${anchorSelector}）`,
+          summary: `已点击（策略=${strategy} 锚点=${anchorSelector}${navPromise ? ",已等待导航稳定" : ""}）`,
           durationMs: Date.now() - t0,
         };
       }

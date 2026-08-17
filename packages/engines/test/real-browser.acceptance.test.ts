@@ -49,11 +49,10 @@ describe("真实浏览器验收：框架真实代码路径（观察/提取/点�
 
   it("框架点击页面链接并真实跳转（对齐用户行为）", { timeout: BROWSER_TEST_TIMEOUT }, async () => {
     await forge.act({ type: "navigate", url: "https://example.com" });
+    // 点击默认 waitForNavigation=true：引擎会等待点击链接触发的新页面加载完成后再返回，
+    // 无需脆弱的 setTimeout 硬等，即可观察到跳转后的稳定页面（真实网络跳转留给 30s 超时兜底）。
     const click = await forge.act({ type: "click", text: "Learn more" });
     expect(click.ok).toBe(true);
-    // 点击触发导航，等待新页面加载后观察 URL
-    // 真实网络跳转（example.com → iana.org）在 CI 环境可能较慢，预留足够超时预算
-    await new Promise((r) => setTimeout(r, 2500));
     const snap = await forge.observe({ maxNodes: 20 });
     expect(snap.url).toMatch(/iana\.org/);
   });
