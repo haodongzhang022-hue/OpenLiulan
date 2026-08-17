@@ -1,7 +1,7 @@
 {
-  "name": "@openliulan/engines",
+  "name": "@openliulan/stealth",
   "version": "1.0.0",
-  "description": "底层驱动适配：Playwright / CDP 双引擎 + 快照/定位/诊断采集器",
+  "description": "防检测模块：反指纹、反爬虫检测、人类行为模拟，保护数据采集用户不被限速/封禁",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -13,9 +13,6 @@
   },
   "dependencies": {
     "@openliulan/core": "1.0.0",
-    "@openliulan/diagnosis": "1.0.0",
-    "@openliulan/ai-layer": "1.0.0",
-    "@openliulan/stealth": "1.0.0",
     "playwright": "^1.45.0"
   },
   "devDependencies": {

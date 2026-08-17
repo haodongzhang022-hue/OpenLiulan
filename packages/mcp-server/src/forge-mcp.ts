@@ -8,6 +8,7 @@ import { ForgeBrowser } from "@openliulan/core";
 import { PlaywrightEngine } from "@openliulan/engines";
 import { DiagnosisCenter } from "@openliulan/diagnosis";
 import { compactSnapshot } from "@openliulan/token";
+import type { StealthOptions } from "@openliulan/stealth";
 import { TOOLS, okResult, errResult, type ToolResult, type McpToolSchema } from "./tools.js";
 import { SessionLogger } from "./logger.js";
 import { buildAIMessage, messageToContent, type AIMessage } from "./message.js";
@@ -23,6 +24,8 @@ export interface ForgeMcpOptions {
   logger?: SessionLogger;
   /** 事件流最大保留条数 */
   maxEvents?: number;
+  /** 防检测配置（可选，默认关闭） */
+  stealth?: StealthOptions;
 }
 
 export class ForgeMcp {
@@ -39,7 +42,11 @@ export class ForgeMcp {
   /** 生命周期：确保浏览器已就绪 */
   private async ensureBrowser(): Promise<ForgeBrowser> {
     if (!this.browser) {
-      const engine = new PlaywrightEngine({ headless: this.opts.headless ?? true, connectUrl: this.opts.connectUrl });
+      const engine = new PlaywrightEngine({
+        headless: this.opts.headless ?? true,
+        connectUrl: this.opts.connectUrl,
+        stealth: this.opts.stealth,
+      });
       this.browser = new ForgeBrowser(engine);
       await this.browser.start();
     }
@@ -204,6 +211,27 @@ export class ForgeMcp {
           }
           result = okResult("浏览器已关闭");
           this.logger.system("浏览器已关闭");
+          break;
+        }
+
+        case "stealth_status": {
+          // 查询防检测模块状态（需在构造时配置 stealth 才能生效）
+          const stealthOpts = this.opts.stealth;
+          const enabled = stealthOpts?.enabled ?? false;
+          const level = stealthOpts?.level ?? "basic";
+          const ua = stealthOpts?.userAgent ?? "default";
+          const lines = [
+            `# 防检测（Stealth）状态`,
+            `- **启用**: ${enabled ? "✅ 是" : "❌ 否"}`,
+            `- **级别**: ${level}`,
+            `- **User-Agent**: ${ua}`,
+            ``,
+            enabled
+              ? "> Stealth 已启用：反指纹注入、自动化控制隐藏、人类行为模拟均生效。"
+              : "> Stealth 未启用。若采集公开数据时被限速/封禁，可通过 `stealth.enabled=true` 在初始化时开启。",
+          ];
+          result = okResult(lines.join("\n"), { enabled, level, ua });
+          this.logger.log({ category: "system", message: `查询 stealth 状态: ${enabled ? "enabled" : "disabled"}` });
           break;
         }
 

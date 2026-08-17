@@ -217,7 +217,7 @@ describe("harness 工具映射", () => {
       expect(props[p], `act schema 应包含参数 ${p}`).toBeDefined();
     }
     // 工具列表完整
-    expect(schemas.map((s: any) => s.function.name)).toEqual(["observe", "act", "diagnose", "eval", "screenshot", "session_log", "close"]);
+    expect(schemas.map((s: any) => s.function.name)).toEqual(["observe", "act", "diagnose", "eval", "screenshot", "session_log", "close", "stealth_status"]);
   });
 });
 

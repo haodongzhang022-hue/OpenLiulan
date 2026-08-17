@@ -5,6 +5,9 @@
  *   forge-mcp --stdio            # stdio MCP 服务（供 MCP 客户端）
  *   forge-mcp --http --port 8787 # HTTP 服务（供 cnb.cool / webhook）
  *   forge-mcp --connect <url>    # 连接已启动的浏览器（CDP）
+ *   forge-mcp --stealth true     # 启用防检测（Stealth）模式
+ *   forge-mcp --stealth-level full  # 防检测级别（basic/full）
+ *   forge-mcp --stealth-ua <ua>  # 自定义 User-Agent
  *   forge-mcp --ci-spec <json>   # CNB CI/Pipeline 冒烟检查（在云端构建机执行）
  */
 import { ForgeMcp } from "./forge-mcp.js";
@@ -35,6 +38,11 @@ const args = parseArgs(process.argv.slice(2));
 const mcp = new ForgeMcp({
   headless: args.headless !== "false",
   connectUrl: args.connect,
+  stealth: {
+    enabled: args.stealth === "true" || args.stealth === "1",
+    level: (args["stealth-level"] as any) ?? "basic",
+    userAgent: args["stealth-ua"],
+  },
 });
 
 if (args["harness-schema"]) {

@@ -110,6 +110,11 @@ export const TOOLS: McpToolSchema[] = [
     description: "关闭浏览器，结束会话。",
     inputSchema: { type: "object", properties: {} },
   },
+  {
+    name: "stealth_status",
+    description: "查看防检测（Stealth）模块状态：是否启用、级别、UA 策略等。防检测用于避免被目标站点识别为爬虫而限速/封禁。",
+    inputSchema: { type: "object", properties: {} },
+  },
 ];
 
 /** 工具调用结果（协议无关的标准响应结构） */

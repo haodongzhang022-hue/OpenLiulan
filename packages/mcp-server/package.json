@@ -19,7 +19,8 @@
     "@openliulan/engines": "1.0.0",
     "@openliulan/diagnosis": "1.0.0",
     "@openliulan/token": "1.0.0",
-    "@openliulan/ai-layer": "1.0.0"
+    "@openliulan/ai-layer": "1.0.0",
+    "@openliulan/stealth": "1.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

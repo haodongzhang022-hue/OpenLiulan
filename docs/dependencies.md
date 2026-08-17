@@ -48,13 +48,23 @@
 ├── @openliulan/engines
 ├── @openliulan/diagnosis
 ├── @openliulan/token
-└── @openliulan/ai-layer
+├── @openliulan/ai-layer
+└── @openliulan/stealth
 
 @openliulan/engines
 ├── @openliulan/core
 ├── @openliulan/diagnosis
 ├── @openliulan/ai-layer
+├── @openliulan/stealth
 └── playwright
+
+@openliulan/stealth
+├── @openliulan/core
+└── playwright
+
+@openliulan/viz
+├── @openliulan/core
+└── @openliulan/mcp-server
 
 @openliulan/core
 └── zod
@@ -65,10 +75,12 @@
 | 模块 | 职责 |
 | :--- | :--- |
 | `@openliulan/core` | 动作模型、状态协调、浏览器门面、页面快照抽象。 |
-| `@openliulan/engines` | Playwright/CDP 浏览器驱动、DOM 定位、快照、诊断采集。 |
+| `@openliulan/engines` | Playwright/CDP 浏览器驱动、DOM 定位、快照、诊断采集、Stealth 集成。 |
 | `@openliulan/diagnosis` | 控制台、网络、JS 异常、性能和 DOM 的结构化诊断。 |
 | `@openliulan/token` | DOM 精简、快照压缩与 Token 控制策略。 |
 | `@openliulan/ai-layer` | 语义元素定位、自然语言动作规划辅助。 |
+| `@openliulan/stealth` | 防检测模块：反指纹注入、自动化控制隐藏、人类行为模拟。 |
+| `@openliulan/viz` | 条件触发式可视化调试面板：AI 决策透明化、用户确认回环。 |
 | `@openliulan/mcp-server` | 把 Forge 能力暴露为 stdio MCP、HTTP 服务、CI 冒烟测试 CLI。 |
 
 ---
@@ -136,6 +148,7 @@ mcp__forge__eval
 mcp__forge__screenshot
 mcp__forge__session_log
 mcp__forge__close
+mcp__forge__stealth_status
 ```
 
 ---

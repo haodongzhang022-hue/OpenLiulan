@@ -1,7 +1,7 @@
 {
-  "name": "@openliulan/engines",
+  "name": "@openliulan/viz",
   "version": "1.0.0",
-  "description": "底层驱动适配：Playwright / CDP 双引擎 + 快照/定位/诊断采集器",
+  "description": "条件触发式可视化调试面板：页面操作/诊断/Token 消耗的可视化回放，用户声明需要调试时启用，是 AI 伦理透明化的一部分",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -13,10 +13,7 @@
   },
   "dependencies": {
     "@openliulan/core": "1.0.0",
-    "@openliulan/diagnosis": "1.0.0",
-    "@openliulan/ai-layer": "1.0.0",
-    "@openliulan/stealth": "1.0.0",
-    "playwright": "^1.45.0"
+    "@openliulan/mcp-server": "1.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

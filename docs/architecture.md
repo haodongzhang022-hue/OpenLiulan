@@ -14,6 +14,7 @@ OpenLiulan 整合了 **Browser-Use / Stagehand / Chrome DevTools MCP / Playwrigh
 │  packages/mcp-server  —— 统一 MCP 服务 + 增强双适配器         │
 │    · deepseek harness 适配（函数 schema + 自愈 AgentLoop）     │
 │    · cnb.cool 适配（stdio / HTTP / CI-Pipeline / 知识库注入）   │
+│    · stealth_status 工具（查询防检测状态）                      │
 └──────────────────────┬──────────────────────────────┘
 ┌──────────────────────▼──────────────────────────────┐
 │  packages/ai-layer    —— AI 语义层（Browser-Use 能力）│
@@ -35,11 +36,24 @@ OpenLiulan 整合了 **Browser-Use / Stagehand / Chrome DevTools MCP / Playwrigh
 └───────┬──────────────┘   └──────────┬───────────────┘
         └──────────────┬──────────────┘
 ┌──────────────────────▼──────────────────────────────┐
+│  packages/stealth     —— 防检测模块                  │
+│    · 反指纹注入（webdriver/plugins/languages）        │
+│    · 自动化控制隐藏（启动参数）                      │
+│    · 人类行为模拟（鼠标轨迹/输入延迟/随机间隔）        │
+│    · User-Agent 策略                                  │
+└──────────────────────┬──────────────────────────────┘
+┌──────────────────────▼──────────────────────────────┐
 │  packages/engines     —— 底层驱动适配                │
-│    · Playwright 引擎（精确操作）                     │
+│    · Playwright 引擎（精确操作 + Stealth 集成）       │
 │    · CDP 直连（DevTools MCP 能力）                  │
 │    · 多策略定位器（ref/selector/text/semantic）      │
 │    · 快照生成器 + 诊断采集器                         │
+└──────────────────────┬──────────────────────────────┘
+┌──────────────────────▼──────────────────────────────┐
+│  packages/viz         —— 条件触发式可视化面板         │
+│    · AI 决策透明化（为什么这么做）                   │
+│    · 用户确认回环（需要参与时请求确认）              │
+│    · 按需启用（用户声明需要调试时才触发）            │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -62,6 +76,8 @@ OpenLiulan 整合了 **Browser-Use / Stagehand / Chrome DevTools MCP / Playwrigh
 6. **适配即增强（而非仅能用）**：
    - deepseek harness：不止映射函数 schema，更提供**自愈 AgentLoop**，把 deepseek 的多步规划/思考与 Forge 的 5 星诊断闭环成自动化排障代理（失败自动诊断 → LLM 修正 → 重试；`assert` 自验收）。
    - cnb.cool：不止提供 stdio/HTTP，更落地 **CI/Pipeline 冒烟检查**（在云端构建机启动真实浏览器验收并把截图/诊断落盘为制品）与**仓库知识库注入**（让 AI 决策带上项目语境），实现单靠裸接口做不到的端到端验收。
+7. **Stealth 默认关闭、按需开启**：防检测能力（`stealth`）不默认侵入用户浏览行为，仅当用户声明需要采集公开数据/规避爬虫检测时才启用。
+8. **可视化条件触发（AI 伦理）**：可视化面板（`viz`）只在用户声明需要调试/参与时激活，让 AI 决策透明、用户可干预。
 
 ## 引擎选型建议
 
@@ -70,3 +86,5 @@ OpenLiulan 整合了 **Browser-Use / Stagehand / Chrome DevTools MCP / Playwrigh
 | 日常自动化 | Playwright 启动 | 简单、稳定、headless 默认 |
 | 调试已开页面 | CDP 直连 `connectUrl` | 借鉴 DevTools MCP，连接真实浏览器调试 |
 | 高精度操作 | 快照 ref 定位 | Stagehand 式精确点击 |
+| 数据采集/爬取 | Stealth 防检测 | `stealth: { enabled: true }` 避免被识别为爬虫限速/封禁 |
+| 需要用户参与/调试可视化 | viz 条件触发 | `createViz({ mode: "on-demand" })` 用户声明需要时启用 |

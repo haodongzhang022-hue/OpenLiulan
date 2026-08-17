@@ -9,6 +9,7 @@
 import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
 import type { BrowserEngine, DiagnosticReport, UnifiedAction, ActionResult, PageSnapshot, SnapshotOptions } from "@openliulan/core";
 import { locateBySemantic } from "@openliulan/ai-layer";
+import { StealthManager, type StealthOptions } from "@openliulan/stealth";
 import { ElementLocator } from "./locator.js";
 import { SnapshotBuilder } from "./snapshot.js";
 import { PlaywrightDiagnostics } from "./diagnostics.js";
@@ -21,6 +22,8 @@ export interface PlaywrightEngineOptions {
   executablePath?: string;
   /** 视口 */
   viewport?: { width: number; height: number };
+  /** 防检测配置（可选，默认关闭） */
+  stealth?: StealthOptions | StealthManager;
 }
 
 export class PlaywrightEngine implements BrowserEngine {
@@ -32,12 +35,26 @@ export class PlaywrightEngine implements BrowserEngine {
   private snapshotBuilder?: SnapshotBuilder;
   private diagnostics?: PlaywrightDiagnostics;
   private options: PlaywrightEngineOptions;
+  /** 防检测管理器 */
+  private stealth?: StealthManager;
 
   constructor(options: PlaywrightEngineOptions = {}) {
     this.options = { headless: true, viewport: { width: 1280, height: 800 }, ...options };
+    // 构造 stealth 管理器（接受 StealthManager 实例或配置对象）
+    if (this.options.stealth instanceof StealthManager) {
+      this.stealth = this.options.stealth;
+    } else if (this.options.stealth) {
+      this.stealth = new StealthManager(this.options.stealth);
+    }
+  }
+
+  /** 当前 stealth 是否启用 */
+  get stealthEnabled(): boolean {
+    return this.stealth?.isEnabled ?? false;
   }
 
   async init(): Promise<void> {
+    const launchArgs = this.stealth?.buildLaunchArgs() ?? [];
     if (this.options.connectUrl) {
       // CDP 直连（借鉴 Chrome DevTools MCP 的能力）
       this.browser = await chromium.connectOverCDP(this.options.connectUrl);
@@ -45,9 +62,17 @@ export class PlaywrightEngine implements BrowserEngine {
       this.browser = await chromium.launch({
         headless: this.options.headless,
         executablePath: this.options.executablePath,
+        args: launchArgs.length ? launchArgs : undefined,
       });
     }
-    this.context = this.browser.contexts()[0] || (await this.browser.newContext({ viewport: this.options.viewport }));
+    // 创建上下文：若启用 stealth，注入反指纹脚本与 UA
+    const ctxOptions: any = { viewport: this.options.viewport };
+    if (this.stealth?.isEnabled) {
+      const initScript = this.stealth.buildInitScript();
+      if (initScript) ctxOptions.initScript = initScript;
+      if (this.stealth.options.userAgent) ctxOptions.userAgent = this.stealth.options.userAgent;
+    }
+    this.context = this.browser.contexts()[0] || (await this.browser.newContext(ctxOptions));
     this.page = this.context.pages()[0] || (await this.context.newPage());
     this.diagnostics = new PlaywrightDiagnostics(this.page);
     this.snapshotBuilder = new SnapshotBuilder(this.page);
@@ -142,11 +167,13 @@ export class PlaywrightEngine implements BrowserEngine {
           text: action.text,
         });
         await locator.click();
-        await this.page.keyboard.type(action.value, { delay: action.delay });
+        // stealth 模式下：逐键输入带人类化随机延迟（避免输入太快被识别为机器人）
+        const delay = action.delay ?? (this.stealth?.isEnabled ? this.stealth.humanTypingDelayMs() : undefined);
+        await this.page.keyboard.type(action.value, { delay: delay ?? 0 });
         return {
           ok: true,
           type: "type",
-          summary: `已逐键输入（策略=${strategy}）`,
+          summary: `已逐键输入（策略=${strategy}${this.stealth?.isEnabled ? ",stealth延迟" : ""}）`,
           durationMs: Date.now() - t0,
         };
       }
