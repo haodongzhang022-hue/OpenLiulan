@@ -47,10 +47,11 @@ describe("真实浏览器验收：框架真实代码路径（观察/提取/点�
     const click = await forge.act({ type: "click", text: "Learn more" });
     expect(click.ok).toBe(true);
     // 点击触发导航，等待新页面加载后观察 URL
+    // 真实网络跳转（example.com → iana.org）在 CI 环境可能较慢，预留足够超时预算
     await new Promise((r) => setTimeout(r, 2500));
     const snap = await forge.observe({ maxNodes: 20 });
     expect(snap.url).toMatch(/iana\.org/);
-  });
+  }, 20_000);
 
   it("框架 5 星诊断采集真实控制台/网络/JS 异常", async () => {
     await forge.act({ type: "navigate", url: "https://example.com" });
