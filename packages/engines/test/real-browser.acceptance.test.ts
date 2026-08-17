@@ -19,11 +19,6 @@ import { ForgeBrowser } from "@openliulan/core";
 // 故为这些端到端验收用例设置更宽裕的统一超时，避免 CI 误报。
 const BROWSER_TEST_TIMEOUT = 30_000;
 
-// 真实浏览器测试涉及真实网络导航（example.com / iana.org 等），
-// 运行时受网络波动影响较大（实测单用例可达 5.5s+，超出 vitest 默认 5s 超时），
-// 故为这些端到端验收用例设置更宽裕的统一超时，避免 CI 误报。
-const BROWSER_TEST_TIMEOUT = 30_000;
-
 let engine: PlaywrightEngine;
 let forge: ForgeBrowser;
 
