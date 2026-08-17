@@ -1,0 +1,21 @@
+{
+  "name": "@openliulan/scripting",
+  "version": "1.0.0",
+  "description": "动作脚本化 + 缓存触发回放：把重复操作录制为可回放脚本，轮询换检测，重复操作零 Token 直达（6 星能力）",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@openliulan/core": "1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^3.0.0"
+  }
+}
