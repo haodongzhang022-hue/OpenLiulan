@@ -111,18 +111,76 @@ export class PerformanceCollector implements DiagnosticCollector {
   }
 }
 
+/**
+ * DOM 诊断采集器：检测页面渲染状态，补齐「白屏/未渲染/无交互」这类
+ * 从 console/network 里看不到的 DOM 级问题（对应解决方案库的 blank-page 场景）。
+ */
+export class DomCollector implements DiagnosticCollector {
+  readonly category = "dom" as const;
+  constructor(private page: Page) {}
+
+  async collect(): Promise<DiagnosticRef[]> {
+    const refs: DiagnosticRef[] = [];
+    try {
+      const state = await this.page.evaluate(() => {
+        const body = document.body;
+        const hasBody = !!body && body.childElementCount > 0;
+        // 可见且可交互元素数量（排除隐藏/无布局元素）
+        const visible = Array.from(document.querySelectorAll("a,button,input,select,textarea,[role]"))
+          .filter((el) => {
+            const r = (el as HTMLElement).getBoundingClientRect();
+            const s = getComputedStyle(el);
+            return s.display !== "none" && s.visibility !== "hidden" && r.width > 0 && r.height > 0;
+          }).length;
+        const root = document.getElementById("root") || document.getElementById("app");
+        return {
+          hasBody,
+          visibleInteractive: visible,
+          hasMount: root ? root.childElementCount > 0 : null,
+          bodyTextLen: (document.body?.innerText || "").trim().length,
+        };
+      });
+
+      // 白屏 / 未渲染：body 无子元素 或 挂载节点空 且 无可交互元素
+      const blank = state.hasBody === false || (state.visibleInteractive === 0 && state.bodyTextLen === 0);
+      if (blank) {
+        refs.push({
+          kind: "dom",
+          severity: "error",
+          message: `页面疑似空白/未渲染：body 子元素=${state.hasBody}，可见交互元素=${state.visibleInteractive}，正文=${state.bodyTextLen} 字符`,
+          detail: { hasMount: state.hasMount },
+          timestamp: Date.now(),
+        });
+      } else if (state.visibleInteractive === 0) {
+        // 页面有内容但无可见可交互元素（可能交互被遮挡/需要登录等）
+        refs.push({
+          kind: "dom",
+          severity: "warning",
+          message: `页面无可见可交互元素（正文 ${state.bodyTextLen} 字符），可能需登录或元素被遮挡`,
+          timestamp: Date.now(),
+        });
+      }
+    } catch {
+      // DOM 采集失败忽略（不阻断整体诊断）
+    }
+    return refs;
+  }
+}
+
 /** 聚合所有采集器 */
 export class PlaywrightDiagnostics {
   console: ConsoleCollector;
   jsExceptions: JsExceptionCollector;
   network: NetworkCollector;
   performance: PerformanceCollector;
+  dom: DomCollector;
 
   constructor(private page: Page) {
     this.console = new ConsoleCollector(this.page);
     this.jsExceptions = new JsExceptionCollector(this.page);
     this.network = new NetworkCollector(this.page);
     this.performance = new PerformanceCollector(this.page);
+    this.dom = new DomCollector(this.page);
     this.wire();
   }
 
@@ -152,6 +210,6 @@ export class PlaywrightDiagnostics {
   }
 
   collectors(): DiagnosticCollector[] {
-    return [this.console, this.jsExceptions, this.network, this.performance];
+    return [this.console, this.jsExceptions, this.network, this.performance, this.dom];
   }
 }

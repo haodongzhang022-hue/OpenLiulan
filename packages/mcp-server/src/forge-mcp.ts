@@ -65,9 +65,9 @@ export class ForgeMcp {
         case "diagnose": {
           const b = await this.ensureBrowser();
           const report = await b.captureDiagnostics();
-          // 用 diagnosis 中心生成摘要
+          // 用 diagnosis 中心生成摘要（core 与 diagnosis 的报告类型已对齐，无需强转）
           const { summarize } = await import("@browser-ai-forge/diagnosis");
-          const summary = summarize(report as any);
+          const summary = summarize(report);
           const lines = [`# 诊断结果 (${summary.healthy ? "健康" : "存在问题"})`];
           if (summary.issues.length === 0) {
             lines.push("未发现错误，页面运行正常。");
@@ -83,6 +83,7 @@ export class ForgeMcp {
             issues: summary.issues,
             console: report.console.length,
             network: report.network.length,
+            dom: report.dom.length,
             jsExceptions: report.jsExceptions.length,
           });
         }

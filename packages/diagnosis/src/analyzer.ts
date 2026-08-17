@@ -109,6 +109,13 @@ export function summarize(report: DiagnosisReport): DiagnosisSummary {
   const netWarn = report.network.filter((n) => n.severity === "warning");
   for (const n of netWarn) issues.push({ category: "network", severity: "warning", message: n.message });
 
+  // DOM 检查（白屏/未渲染/无交互等，从 console/network 看不到的渲染级问题）
+  for (const d of report.dom) {
+    issues.push({ category: "dom", severity: d.severity === "error" ? "error" : "warning", message: d.message });
+  }
+  const domBlank = report.dom.filter((d) => d.severity === "error");
+  if (domBlank.length) suggestions.push("页面疑似空白/未渲染，检查挂载节点与初始化脚本（可能 JS 报错阻断整树渲染）");
+
   // 性能
   for (const p of report.performance) {
     if (p.severity === "warning") issues.push({ category: "performance", severity: "warning", message: p.message });

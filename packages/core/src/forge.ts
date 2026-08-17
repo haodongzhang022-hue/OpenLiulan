@@ -26,8 +26,10 @@ export class ForgeBrowser {
   private diagnosticsCache: DiagnosticReport = {
     console: [],
     network: [],
+    dom: [],
     performance: [],
     jsExceptions: [],
+    accessibility: [],
   };
 
   constructor(
@@ -91,11 +93,12 @@ export class ForgeBrowser {
         error: message,
       };
       if (this.opts.autoDiagnoseOnError) {
-        // 5 星调试：失败即采集全量诊断
+        // 5 星调试：失败即采集全量诊断（含 DOM 白屏/未渲染检测）
         const report = await this.captureDiagnostics();
         result.diagnostics = [
           ...report.console,
           ...report.network,
+          ...report.dom,
           ...report.jsExceptions,
           ...report.performance,
         ].slice(0, 10);
@@ -116,7 +119,16 @@ export class ForgeBrowser {
   /** 采集全量调试诊断（5 星能力核心） */
   async captureDiagnostics(): Promise<DiagnosticReport> {
     this.session.transition("diagnosing");
-    this.diagnosticsCache = await this.engine.diagnose();
+    const raw = await this.engine.diagnose();
+    // 归一化：对缺失的 dom/accessibility 字段兜底，兼容旧引擎返回的 4 字段结构
+    this.diagnosticsCache = {
+      console: raw.console ?? [],
+      network: raw.network ?? [],
+      dom: raw.dom ?? [],
+      performance: raw.performance ?? [],
+      jsExceptions: raw.jsExceptions ?? [],
+      accessibility: raw.accessibility ?? [],
+    };
     this.session.transition("acting");
     return this.diagnosticsCache;
   }

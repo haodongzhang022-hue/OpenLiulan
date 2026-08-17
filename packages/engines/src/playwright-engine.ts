@@ -8,6 +8,7 @@
  */
 import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
 import type { BrowserEngine, DiagnosticReport, UnifiedAction, ActionResult, PageSnapshot, SnapshotOptions } from "@browser-ai-forge/core";
+import { locateBySemantic } from "@browser-ai-forge/ai-layer";
 import { ElementLocator } from "./locator.js";
 import { SnapshotBuilder } from "./snapshot.js";
 import { PlaywrightDiagnostics } from "./diagnostics.js";
@@ -49,8 +50,18 @@ export class PlaywrightEngine implements BrowserEngine {
     this.context = this.browser.contexts()[0] || (await this.browser.newContext({ viewport: this.options.viewport }));
     this.page = this.context.pages()[0] || (await this.context.newPage());
     this.diagnostics = new PlaywrightDiagnostics(this.page);
-    this.locator = new ElementLocator(this.page);
     this.snapshotBuilder = new SnapshotBuilder(this.page);
+    this.locator = new ElementLocator(this.page, {
+      // 语义定位链路：aria/placeholder 兜底失败后，基于快照做中文分词+语义相似度匹配
+      resolve: async (semantic) => {
+        const snap = await this.snapshotBuilder!.build({ maxNodes: 200, maxTextLength: 80 });
+        const hit = locateBySemantic(snap, semantic);
+        if (hit && (hit.ref || hit.selector)) {
+          return { ref: hit.ref, text: hit.text, selector: hit.selector };
+        }
+        return null;
+      },
+    });
   }
 
   async close(): Promise<void> {
@@ -253,14 +264,18 @@ export class PlaywrightEngine implements BrowserEngine {
 
   async diagnose(): Promise<DiagnosticReport> {
     const collectors = this.diagnostics!.collectors();
-    const [consoleRefs, netRefs, perfRefs, jsRefs] = await Promise.all(
-      collectors.map((c) => c.collect())
+    const collected = await Promise.all(
+      collectors.map(async (c) => ({ category: c.category, refs: await c.collect() }))
     );
+    const byCat = (cat: string) =>
+      collected.find((c) => c.category === cat)?.refs ?? [];
     return {
-      console: consoleRefs,
-      network: netRefs,
-      performance: perfRefs,
-      jsExceptions: jsRefs,
+      console: byCat("console"),
+      network: byCat("network"),
+      dom: byCat("dom"),
+      performance: byCat("performance"),
+      jsExceptions: byCat("js-exception"),
+      accessibility: byCat("accessibility"),
     };
   }
 

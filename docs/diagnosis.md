@@ -10,7 +10,7 @@
 | 网络 | 失败请求(4xx/5xx)、慢请求(>3s)、CORS | 定位接口/资源问题 |
 | JS 异常 | 未捕获异常 + 堆栈 | 定位代码崩溃点 |
 | 性能 | TTFB / LCP / FCP / 长任务 / 资源体积 | 定位首屏与卡顿 |
-| DOM | 元素 outline / 位置 / ARIA / 样式 | 辅助精确定位与可访问性 |
+| DOM | 元素 outline / 位置 / ARIA / 样式、白屏/未渲染/无交互检测 | 辅助精确定位与可访问性 |
 | 无障碍 | ARIA / role / name | 提升可访问性与定位精度 |
 
 ## 核心流程：失败即诊断
@@ -62,9 +62,11 @@ AI 通过 MCP 直接调用 `diagnose`，返回：
     "## 建议",
     "1. 控制台有 1 条错误..."
   ],
-  "structured": { "issues": [...], "console": 1, "network": 1 }
+  "structured": { "issues": [...], "console": 1, "network": 1, "dom": 0, "jsExceptions": 0 }
 }
 ```
+
+> DOM 采集器会检测页面是否**空白/未渲染/无可见可交互元素**（如挂载节点空、初始化 JS 报错阻断整树渲染），这类渲染级问题从 console/network 里看不到，但对 AI 排障极关键——对应「白屏」类问题的自动匹配。
 
 ## 与 DevTools MCP 的差异与互补
 

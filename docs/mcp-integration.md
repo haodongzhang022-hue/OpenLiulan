@@ -172,7 +172,8 @@ npx forge-mcp --ci-spec ./ci-spec.json
     { "action": "act", "args": { "type": "assert", "text": "Example", "mode": "text-contains" } },
     { "action": "screenshot", "args": { "fullPage": true }, "nonFatal": true }
   ],
-  "artifactDir": "./forge-artifacts"
+  "artifactDir": "./forge-artifacts",
+  "solutionRepoFile": "./solutions-repo.json"   // 可选：CLI 已透传，启用可成长方案库
 }
 ```
 

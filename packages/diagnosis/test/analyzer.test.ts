@@ -66,4 +66,18 @@ describe("诊断摘要", () => {
     expect(summary.issues[0].category).toBe("js-exception");
     expect(summary.suggestions.length).toBeGreaterThan(0);
   });
+
+  it("DOM 白屏诊断进入摘要并给出建议", () => {
+    const summary = summarize({
+      console: [],
+      network: [],
+      dom: [{ kind: "dom", severity: "error", message: "页面疑似空白/未渲染", timestamp: 0 }],
+      performance: [],
+      jsExceptions: [],
+      accessibility: [],
+    });
+    expect(summary.healthy).toBe(false);
+    expect(summary.issues.some((i) => i.category === "dom" && i.severity === "error")).toBe(true);
+    expect(summary.suggestions.some((s) => s.includes("空白/未渲染"))).toBe(true);
+  });
 });
