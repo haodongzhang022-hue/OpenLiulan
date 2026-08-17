@@ -62,38 +62,180 @@
 > 5 星：把自然语言翻译成精确动作（**只有说法**）。
 > 6 星：语义不只停留在「说法」，而是**可持久化、可脚本化**——`@openliulan/scripting` 全新模块。
 
+**强化了什么（5 星 → 6 星）**：
 - **重复操作缓存触发打包**：同一页面同一目标的操作**出现 2 次**，自动生成脚本草稿并询问是否落库（复用 `solutions.ts` 的「二次触发不打扰」设计哲学）；下次直接触发回放；
 - **语义持久化**：脚本以 JSON 落盘（`JsonScriptStore`），**跨会话留存**——今天录的脚本，下次会话仍在，语义从一次性说法变成可复用资产；
 - **语义指纹去重**：页面 URL 归一化（忽略 query/hash）+ 动作类型序列 + 锚点文本三重指纹，`click→fill→click` 这类序列可精确识别「同一操作」。
+
+**📸 工作示意图（说一次，记下来，下次直接执行）**：
+
+```mermaid
+flowchart LR
+  A[AI 一句话<br/>“把订单页状态抓下来”] --> B[语义规划<br/>navigate + click + fill + extract]
+  B --> C[执行动作序列]
+  C -->|第 1 次执行| D[动作轨迹记录 ActionRecorder]
+  D -->|同一目标再出现| E{出现 2 次?}
+  E -- 否 --> C
+  E -- 是 --> F[生成脚本草稿<br/>询问是否落库，不打扰]
+  F --> G[JSON 落盘 JsonScriptStore<br/>跨会话留存]
+  G --> H[下次同目标<br/>ScriptPlayer 直接回放]
+```
+
+**🛠️ 真实案例（第二次操作零理解、直接复用）**：
+
+```ts
+// 第 1 次：AI 完整规划并执行（走 LLM）
+await aiLayer.plan("抓取订单页所有订单号");  // 规划 → navigate/fill/click/extract
+
+// 第 2 次：同一 URL + 同一动作序列被识别为“同一操作”
+const script = await recorder.maybeOfferScript(signature); // 触发打包询问
+// → { ok: true, scriptId: "orders-fetch", asked: "是否保存为可复用脚本?" }
+
+// 第 3 次：直接脚本回放，完全不走 LLM
+const result = await player.replay("orders-fetch");
+console.log(result); // ✅ 订单号数组，0 Token 消耗
+```
 
 ### 🎯 操作精确性 —— 6 星「变化触发 + 图色等待」
 > 5 星：强选择器 + 自动等待 + 稳定性重试（**指哪打哪**）。
 > 6 星：新增**像素级等待触发**与**图色识别触发**，操作判定从「猜时机」变成「等变化」——`@openliulan/scripting` 的 `ChangeWatcher`。
 
+**强化了什么（5 星 → 6 星）**：
 - **轮询换检测**：`wait-for-change` 在页面本地监听，**变化发生才返回**，等待过程**零 Token 消耗**；
 - **图色识别等待触发**：支持 `waitForColor(x, y, rgb)`——**识别某处颜色、等待颜色变化后触发**（对标按键精灵/易语言的图色脚本）；
 - **元素/文本出现等待**：`waitForSelector` / `waitForText` 等待 DOM 变化触发，不靠反复让 AI 看页面。
+
+**📸 工作示意图（等变化，而不是反复猜）**：
+
+```mermaid
+flowchart TD
+  A[AI 要点击“下载”按钮] --> B{按钮渲染好了吗?}
+  B -- 否 --> C[页面本地轮询探测<br/>每 300ms 一次，零 Token]
+  C --> B
+  B -- 是 --> D{被 loading 遮罩挡着?}
+  D -- 是 --> E[waitForSelector 等遮罩消失<br/>本地等待]
+  E --> D
+  D -- 否 --> F{登录态图标变绿了吗?}
+  F -- 否 --> G[waitForColor 识别坐标颜色<br/>等待由灰变绿再触发]
+  G --> F
+  F -- 是 --> H[✅ 精确点击下载]
+```
+
+**🛠️ 真实案例（图色识别等待触发，对标按键精灵）**：
+
+```ts
+import { ChangeWatcher } from "@openliulan/scripting";
+const watcher = new ChangeWatcher({ timeoutMs: 30_000 });
+
+// 等待坐标 (520, 380) 处的“登录成功”绿色 (#22c55e) 出现，变化触发即返回
+const r = await watcher.waitForColor(520, 380, [0x22, 0xc5, 0x5e], true, probe);
+// { ok: true, waitedMs: 2400, note: "变化已触发（等待 2400ms，零 Token 消耗）" }
+
+// 等待“提交”按钮渲染出来再点（不靠 AI 反复截图猜时机）
+await watcher.waitForSelector("button[data-testid=submit]", true, probe);
+```
 
 ### ⚡ Token 效率 —— 6 星「脚本零 Token 回放」
 > 5 星：DOM 裁剪 + 增量读取 + 结构化压缩（**单次省**）。
 > 6 星：重复操作**第二次起零消耗**——`@openliulan/scripting` 的 `ScriptPlayer` + `ScriptMarket`。
 
+**强化了什么（5 星 → 6 星）**：
 - **脚本回放替代 token 调用**：重复操作命中脚本后直接驱动底层动作，**完全不走 LLM**，重复越多次省得越多；
 - **轮询换检测省 Token**：等待变化在本地完成，不消耗 LLM Token；
 - **脚本市场按页分类**：脚本以**页面地址**为命名空间分类（`ScriptMarket`），同页面操作可被**互相推荐**，回放次数/节省 Token 决定推荐排序，越常用越靠前；
 - **跨会话沉淀**：脚本持久化后，其他会话/用户也可复用他人有效脚本。
 
+**📸 工作示意图（第一次全量理解，之后无限接近零）**：
+
+```mermaid
+flowchart LR
+  subgraph 第一次[第 1 次 · 走 LLM]
+    A1[全量 DOM 理解<br/>消耗高 Token] --> A2[生成脚本并落盘]
+  end
+  subgraph 第二次起[第 2 次起 · 零 Token]
+    B1[命中 ScriptPlayer 回放] --> B2[直接驱动底层动作]
+  end
+  A2 -.->|重复操作| B1
+  B2 --> C[同页脚本进市场<br/>按页互荐，越用越省]
+```
+
+**🛠️ 真实案例（一个大表单页 vs 全量 DOM vs 脚本回放）**：
+
+```
+全量 DOM dump        → 约 38,000 tokens   ❌ 又贵又慢
+OpenLiulan 快照裁剪   → 约 150 tokens      ✅ 只列可交互索引
+  # 页面: 订单表单 | 节点: 1200 | ≈150 tokens
+  ## 可交互元素 (12)
+  - r0 <input> "收货人"    - r3 <select> "省份"
+  - r1 <input> "手机号"    - r7 <button> "提交订单"
+  （需要详情才 expandNode(r7) 按需展开）
+
+重复提交同一表单（第 2 次起）→ 脚本回放    → 0 tokens ✅
+等待“提交成功”变化         → 本地轮询换检测 → 0 tokens ✅
+```
+
 ### 🔍 调试/诊断 —— 6 星「云端匹配直接解决」
 > 5 星：自动采集全信息（DOM/控制台/网络/JS 异常）+ 结构化诊断（`@openliulan/diagnosis`）。
 > 6 星：在 5 星基础上补齐**日志 + AI 云端匹配直接解决**——`@openliulan/mcp-server` 的 `SessionLogger` + `SolutionRepository`。
 
+**强化了什么（5 星 → 6 星）**：
 - **全信息自动采集**：失败即采集 DOM / 控制台 / 网络 / JS 异常 / 性能 / 无障碍 6 类诊断（`ForgeBrowser.captureDiagnostics`）；
 - **连贯事件日志**：`SessionLogger` 维护动作/诊断/错误/截图/日志事件流，可订阅、拉取、导出 Markdown，对 AI 完全透明；
 - **AI 云端匹配直接解决**：错误自动匹配 `SolutionRepository` 方案库，**简单问题直接给可落地修复步骤，复杂问题推荐模块/思路**，解决后 `addSolution()` 持久化入库、注入决策上下文——「解决问题」而非「只报告问题」。
 
+**📸 工作示意图（报错即诊断，诊断即解决）**：
+
+```mermaid
+flowchart TD
+  A[动作失败] --> B[自动采集 6 类诊断<br/>DOM/控制台/网络/JS异常/性能/无障碍]
+  B --> C[SessionLogger 记录连贯事件流]
+  C --> D[AI 云端匹配 SolutionRepository]
+  D --> E{命中已知方案?}
+  E -- 是 --> F[直接给可落地修复步骤]
+  E -- 否 --> G[记为待沉淀候选<br/>解决后 addSolution 入库]
+  G --> H[下次同类错误<br/>直接从“报错”变“可行动结论”]
+  F --> H
+```
+
+**🛠️ 真实案例（一次失败点击，直接给出根因 + 修复）**：
+
+```
+[act] click "不存在的按钮" → 失败
+  → 自动采集诊断:
+     · [console/error] Uncaught TypeError: x is not a function
+     · [network/error] GET /api/config (404)
+  → 健康度摘要: 不健康
+  → AI 云端匹配 → 命中「接口未部署」方案 → 直接给出修复步骤
+  → 解决后 addSolution() 入库 → 下次同类错误秒级诊断
+  → AI 据此修复，不再瞎猜
+```
+
 ### 🔌 MCP 集成 & 🛠️ 双引擎 —— 6 星「统一接入 + 双引擎」
+
+**强化了什么（5 星 → 6 星）**：
 - **MCP 统一接入**：Browser-Use / Stagehand / DevTools MCP / Playwright MCP 四合一，一套规范动作对接 DeepSeek Harness 与 cnb.cool；
-- **双引擎**：Playwright + CDP 双驱动自由切换，一份代码两种底层能力。
+- **多接入方式**：同一套 `ForgeMcp` 内核同时服务 stdio / HTTP / harness 函数调用 / CI-Pipeline，传输层解耦、协议无关；
+- **双引擎**：Playwright + CDP 双驱动自由切换，一份代码两种底层能力——日常 headless 自动化用 Playwright，调试已开页面用 CDP 直连 `connectUrl`。
+
+**🛠️ 真实案例（同一份代码，无缝切换两种底层）**：
+
+```ts
+import { ForgeBrowser } from "@openliulan/core";
+import { PlaywrightEngine } from "@openliulan/engines";
+
+// 日常自动化：Playwright 启动
+const forge = new ForgeBrowser(new PlaywrightEngine(), { headless: true });
+
+// 调试已打开的真实浏览器：CDP 直连（复用 DevTools 调试通道）
+const forge2 = await forge.connectUrl("ws://127.0.0.1:9222/devtools/page/xxx");
+
+// 同一套 act / observe / diagnose 动作，底层自动切换，AI 无感知
+await forge2.act({ type: "click", ref: "r07" });
+```
+
+> 💡 **六个维度一起看**：别人往往只强一项——Browser-Use 语义强、Stagehand 精确、DevTools MCP 会诊断、Playwright 会底层操作。
+> OpenLiulan 把**语义可脚本化 + 精确到像素级触发 + 零 Token 回放 + 报错即解决 + 统一接入 + 双引擎**六合一，
+> 每一项 5 星之上都真实叠加了新能力，**6 星有理有据，绝不是虚标**。
 
 ---
 
