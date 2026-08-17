@@ -12,6 +12,7 @@ import { TOOLS, okResult, errResult, type ToolResult, type McpToolSchema } from 
 import { SessionLogger } from "./logger.js";
 import { buildAIMessage, messageToContent, type AIMessage } from "./message.js";
 import type { ForgeAnyEvent } from "./events.js";
+import { guardJsScript, redactUrl, redactDeep } from "./security.js";
 
 export interface ForgeMcpOptions {
   /** 无头模式 */
@@ -141,8 +142,28 @@ export class ForgeMcp {
 
         case "eval": {
           const b = await this.ensureBrowser();
-          const evalResult = await b.eval(String(args.script));
-          result = okResult(`执行结果: ${JSON.stringify(evalResult)?.slice(0, 2000)}`, { result: evalResult });
+          const script = String(args.script);
+          // 安全加固：拦截高危注入脚本（文件系统/子进程/渗透尝试），防提权
+          const guard = guardJsScript(script);
+          if (guard.blocked) {
+            result = errResult(
+              `eval 被安全拦截：脚本命中高危操作 [${(guard.reasons ?? []).join(", ")}]。` +
+                `\n为防提权/渗透，禁止通过 eval 注入文件系统访问、子进程执行或系统级操作。`
+            );
+            this.logger.error({
+              message: `eval 被安全拦截: ${guard.reasons?.join(", ")}`,
+              code: "EVAL_BLOCKED",
+              reason: "dangerous-script",
+              raw: script.slice(0, 300),
+              explanation: "检测到高危注入脚本，为防提权/渗透已拒绝执行。",
+              suggestion: "移除文件系统/子进程/系统级访问代码，仅保留页面内的 DOM/JS 诊断。",
+            });
+            break;
+          }
+          const evalResult = await b.eval(script);
+          // 对结果做脱敏，避免 eval 返回的敏感值（如 token/password）外泄
+          const sanitizedResult = redactDeep(evalResult);
+          result = okResult(`执行结果: ${JSON.stringify(sanitizedResult)?.slice(0, 2000)}`, { result: sanitizedResult });
           this.logger.log({ category: "action", message: "eval 执行" });
           break;
         }
@@ -167,7 +188,8 @@ export class ForgeMcp {
           const events = this.logger.toArray();
           const format = String(args.format ?? "markdown");
           if (format === "json") {
-            result = okResult(`共 ${events.length} 条事件`, { events });
+            // 对事件流做深脱敏，防止 payload 携带的令牌/密码外泄
+            result = okResult(`共 ${events.length} 条事件`, { events: redactDeep(events) });
           } else {
             const md = this.logger.exportMarkdown({ title: args.title ? String(args.title) : undefined });
             result = okResult(md, { eventCount: events.length });
@@ -218,11 +240,13 @@ export class ForgeMcp {
     return result;
   }
 
-  /** 隐藏敏感参数（避免把 value/script 全文塞入日志） */
+  /** 隐藏敏感参数（避免把 value/script/url 中的敏感信息全文塞入日志） */
   private safeArgs(args: Record<string, unknown>): Record<string, unknown> {
     const safe: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(args)) {
       if (k === "value" || k === "script") safe[k] = typeof v === "string" ? `<${v.length} chars>` : v;
+      else if (k === "url" && typeof v === "string") safe[k] = redactUrl(v);
+      else if (k === "expected" && typeof v === "string") safe[k] = v.length > 60 ? `${v.slice(0, 60)}...` : v;
       else safe[k] = v;
     }
     return safe;

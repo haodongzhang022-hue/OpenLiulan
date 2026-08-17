@@ -23,6 +23,15 @@ import { ForgeMcp } from "../forge-mcp.js";
 import type { ToolResult } from "../tools.js";
 import { buildAIMessage, messageToContent } from "../message.js";
 import { RepeatErrorRegistry, matchSolution, SolutionRepository, buildSolutionKnowledgeContext, type SolutionMatch } from "../solutions.js";
+import {
+  httpAuthConfigFromEnv,
+  authorizeHttpRequest,
+  redactDeep,
+  redactUrl,
+  redactText,
+  isLoopbackRemote,
+  type HttpAuthConfig,
+} from "../security.js";
 
 /**
  * 供 cnb 端封装为独立进程的 stdio MCP 服务入口。
@@ -104,12 +113,32 @@ function respond(id: any, result: any) {
  * HTTP 服务：把 Forge 能力暴露为 REST API，供 cnb 的 webhook / 远程调用。
  * 返回 Node http server 实例。
  */
-export function createCnbHttpServer(mcp: ForgeMcp, port = 8787) {
+export function createCnbHttpServer(mcp: ForgeMcp, port = 8787, auth?: HttpAuthConfig) {
+  const cfg = auth ?? httpAuthConfigFromEnv();
+  // 最大请求体 1MB，防止恶意超大 payload 拖垮服务
+  const MAX_BODY_BYTES = 1024 * 1024;
+
   const server = http.createServer(async (req, res) => {
+    // 根据鉴权配置决定 CORS 是否开放（有 token/白名单时可开放，否则仅同源）
+    const corsOpen = cfg.enabled || cfg.allowedOrigins?.length;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Origin", corsOpen ? (cfg.allowedOrigins?.[0] ?? "*") : "");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Expose-Headers", "WWW-Authenticate");
+
+    // 鉴权拦截（除 OPTIONS 预检外所有请求都校验，防未授权渗透）
+    const authz = authorizeHttpRequest(
+      cfg,
+      req.socket.remoteAddress,
+      req.headers.origin || req.headers.referer,
+      req.headers.authorization
+    );
+    if (!authz.ok) {
+      res.writeHead(401, { "WWW-Authenticate": `Bearer realm="forge"${cfg.enabled ? ", error=\"invalid_token\"" : ""}` });
+      res.end(JSON.stringify({ error: "unauthorized", reason: authz.reason }));
+      return;
+    }
 
     if (req.method === "OPTIONS") {
       res.writeHead(204);
@@ -124,8 +153,18 @@ export function createCnbHttpServer(mcp: ForgeMcp, port = 8787) {
         return;
       }
       if (req.method === "POST" && req.url === "/tools/call") {
+        // 读取 body 并限制大小
         let body = "";
-        for await (const chunk of req) body += chunk;
+        let total = 0;
+        for await (const chunk of req) {
+          total += (chunk as Buffer).length;
+          if (total > MAX_BODY_BYTES) {
+            res.writeHead(413);
+            res.end(JSON.stringify({ error: "payload too large" }));
+            return;
+          }
+          body += chunk;
+        }
         const { name, arguments: args } = JSON.parse(body || "{}");
         const result = await mcp.callTool(name, args || {});
         // 与 stdio 保持一致：用 AI 协作消息协议序列化（text + image + 事件流），
@@ -141,7 +180,8 @@ export function createCnbHttpServer(mcp: ForgeMcp, port = 8787) {
           ok: result.ok,
           content: messageToContent(msg),
           isError: result.isError,
-          structured: result.structured,
+          // 对结构化数据做脱敏，防止截图之外的敏感信息（如 token）外泄
+          structured: redactDeep(result.structured),
         };
         res.writeHead(result.isError ? 500 : 200);
         res.end(JSON.stringify(payload));
@@ -288,11 +328,11 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
       ? [`**方案库**: 内置 8 条 + 沉淀 ${repo.customCount} 条（${repo.entries.length} 条）`]
       : []),
     ...steps.map(
-      (s) => `- [${s.ok ? "✓" : "✗"}] ${s.action}: ${s.summary}${s.diagnostics ? `\n  ${s.diagnostics}` : ""}`
+      (s) => `- [${s.ok ? "✓" : "✗"}] ${s.action}: ${redactText(s.summary)}${s.diagnostics ? `\n  ${redactText(s.diagnostics)}` : ""}`
     ),
     // 错误自动匹配解决方案汇总（同类问题第 2 次触发）
     ...(solutions.length
-      ? ["", `## 自动匹配的解决方案（${solutions.length} 条）`, ...solutions.map((m) => m.advice).filter(Boolean)]
+      ? ["", `## 自动匹配的解决方案（${solutions.length} 条）`, ...solutions.map((m) => redactText(m.advice ?? "")).filter(Boolean)]
       : []),
     // 沉淀方案知识注入：让 CI 报告/制品携带已积累方案，供在线/本地 AI 决策引用
     ...(useRepo && repo && repo.customCount
@@ -300,19 +340,23 @@ export async function runCiCheck(mcp: ForgeMcp, cfg: CiCheckConfig): Promise<CiC
           "",
           "## 项目已沉淀方案（可注入决策上下文）",
           ...buildSolutionKnowledgeContext(repo, { includeBuiltin: false }).map(
-            (k) => `- **${k.title}**${k.source ? `（来源: ${k.source}）` : ""}: ${k.snippet}`
+            (k) => `- **${redactText(k.title)}**${k.source ? `（来源: ${redactText(k.source)}）` : ""}: ${redactText(k.snippet)}`
           ),
         ]
       : []),
   ].join("\n");
 
+  // 落盘前对整个报告做一次兜底脱敏（防令牌/敏感 URL 泄露进制品）
+  const safeReport = redactText(report);
+
   if (cfg.persistArtifacts) {
     const reportFile = path.join(artifactDir, "report.md");
-    fs.writeFileSync(reportFile, report);
+    fs.writeFileSync(reportFile, safeReport);
     artifacts.push(reportFile);
   }
 
-  return { ok, passed, failed, steps, artifacts, report, solutions };
+  // 对外暴露的 report 用脱敏后的安全版本（供 PR 评论/制品，防令牌泄露）
+  return { ok, passed, failed, steps, artifacts, report: safeReport, solutions };
 }
 
 /**
@@ -447,7 +491,7 @@ export async function runDebugSession(mcp: ForgeMcp, cfg: DebugSessionConfig): P
           "",
           "## 项目已沉淀方案（供决策参考，避免重复造轮子）",
           ...knowledge.map(
-            (k) => `- **${k.title}**${k.source ? `（来源: ${k.source}）` : ""}: ${k.snippet}`
+            (k) => `- **${redactText(k.title)}**${k.source ? `（来源: ${redactText(k.source)}）` : ""}: ${redactText(k.snippet)}`
           ),
         ].join("\n");
         // 插入到报告正文末尾、页脚之前
@@ -545,18 +589,18 @@ export function buildSessionMarkdown(
 ): string {
   const lines = [
     `# Forge 调试会话报告`,
-    `**目标**: ${cfg.goal}`,
-    `**URL**: ${cfg.url}`,
+    `**目标**: ${redactText(cfg.goal)}`,
+    `**URL**: ${redactUrl(cfg.url)}`,
     `**结果**: ${ok ? "✅ 页面健康" : "❌ 存在错误，建议修复"}`,
     "",
     `## 结构化发现 (${findings.length})`,
     ...(findings.length
-      ? findings.map((f) => `- [${f.category}/${f.severity}] ${f.message}\n  > 建议: ${f.suggestion}`)
+      ? findings.map((f) => `- [${f.category}/${f.severity}] ${redactText(f.message)}\n  > 建议: ${redactText(f.suggestion)}`)
       : ["- 未发现明确问题，页面运行正常"]),
     "",
     `## 页面快照`,
     "```",
-    snapshotContext.slice(0, 1000),
+    redactText(snapshotContext.slice(0, 1000)),
     "```",
   ];
   if (screenshotB64) {
@@ -595,8 +639,25 @@ async function deliverCustom(owner: { channel: string; target?: string }, report
     }
   } else if (channel === "webhook") {
     // 简化：POST 到 target URL（需外部实现真实 webhook）
+    // 安全加固：仅允许显式的 http(s) 目标，并拦截内网/IP 地址，防 SSRF 内网探测/渗透
     if (target) {
       try {
+        const u = new URL(target);
+        if (!/^https?:$/.test(u.protocol)) {
+          process.stderr.write(`webhook 投递被拒绝: 仅支持 http/https 协议\n`);
+          return;
+        }
+        const hostname = u.hostname.toLowerCase();
+        const isPrivate =
+          hostname === "localhost" ||
+          hostname.endsWith(".local") ||
+          /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname) ||
+          /^[0-9a-f:]+$/.test(hostname) ||
+          hostname === "0.0.0.0";
+        if (isPrivate) {
+          process.stderr.write(`webhook 投递被拒绝: 不允许内网/回环地址 (${target})\n`);
+          return;
+        }
         const res = await fetch(target, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

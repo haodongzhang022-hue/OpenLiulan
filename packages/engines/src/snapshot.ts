@@ -64,10 +64,22 @@ export class SnapshotBuilder {
           return !!role && INTERACTIVE_ROLES.includes(role);
         };
 
+        // 敏感输入类型（密码/令牌/密钥等）—— 值必须脱敏，防令牌/口令泄露
+        const SENSITIVE_INPUT_TYPES = ["password", "token", "secret", "key", "api-key", "apikey"];
+        const isSensitiveInput = (el: Element): boolean => {
+          if (el.tagName !== "INPUT") return false;
+          const t = (el as HTMLInputElement).type?.toLowerCase() ?? "";
+          const n = ((el.getAttribute("name") || "") + (el.getAttribute("autocomplete") || "")).toLowerCase();
+          if (t === "password") return true;
+          if (SENSITIVE_INPUT_TYPES.includes(t)) return true;
+          return /(password|passwd|token|secret|api[_-]?key|auth)/.test(n);
+        };
         const elText = (el: Element): string => {
           if (el.tagName === "INPUT") {
-            const v = (el as HTMLInputElement).value;
             const ph = el.getAttribute("placeholder") || "";
+            // 敏感输入框不返回真实值，仅用占位符（防令牌/密码入快照）
+            if (isSensitiveInput(el)) return ph ? `[敏感输入] ${ph}` : "[敏感输入已隐藏]";
+            const v = (el as HTMLInputElement).value;
             return v || ph || "";
           }
           if (el.tagName === "SELECT") {
@@ -100,8 +112,14 @@ export class SnapshotBuilder {
           };
 
           for (const attr of ATTR_WHITELIST) {
-            const v = el.getAttribute(attr);
-            if (v) node.attributes[attr] = v.slice(0, 60);
+            let v = el.getAttribute(attr);
+            if (v) {
+              // 敏感输入框的 value 属性必须脱敏（防令牌/密码入快照）
+              if (attr === "value" && isSensitiveInput(el)) {
+                v = "***REDACTED***";
+              }
+              node.attributes[attr] = v.slice(0, 60);
+            }
           }
 
           const role = el.getAttribute("role");

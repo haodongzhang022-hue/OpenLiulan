@@ -12,6 +12,7 @@
  * stdio/HTTP 转发、harness 回调，都用这套消息结构。
  */
 import type { ForgeAnyEvent, ForgeErrorEvent, ScreenshotEvent } from "./events.js";
+import { redactText } from "./security.js";
 
 /** 消息中的图片内容（多模态 AI 可直接用） */
 export interface MessageImage {
@@ -100,12 +101,12 @@ export function buildAIMessage(opts: {
     if (imgs.length) msg.images = imgs;
   }
 
-  // 日志轨迹（最近 20 条事件摘要）
+  // 日志轨迹（最近 20 条事件摘要），message 做脱敏防令牌/敏感 URL 泄露
   if (events.length) {
     msg.logs = events.slice(-20).map((e) => ({
       level: e.level,
       category: e.category,
-      message: e.message,
+      message: redactText(e.message),
       ts: e.ts,
     }));
   }

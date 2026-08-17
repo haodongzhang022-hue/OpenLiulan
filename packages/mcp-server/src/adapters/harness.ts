@@ -34,6 +34,7 @@ import {
   renderAdvice,
   type SolutionMatch,
 } from "../solutions.js";
+import { redactText, redactUrl } from "../security.js";
 
 export interface HarnessTool {
   name: string;
@@ -370,20 +371,20 @@ export function buildDebugReport(
 
   const markdown = [
     `# 调试报告`,
-    `**目标**: ${goal}`,
-    `**URL**: ${url}`,
+    `**目标**: ${redactText(goal)}`,
+    `**URL**: ${redactUrl(url)}`,
     `**结果**: ${ok ? "✅ 达成" : "❌ 未达成"}`,
     `**执行步数**: ${turns.length} | **失败动作**: ${turns.filter((t) => !t.result.ok).length}`,
     "",
     `## 结构化发现 (${findings.length})`,
     ...(findings.length
-      ? findings.map((f) => `- [${f.category}/${f.severity}] ${f.message}\n  > 建议: ${f.suggestion}`)
+      ? findings.map((f) => `- [${f.category}/${f.severity}] ${redactText(f.message)}\n  > 建议: ${redactText(f.suggestion)}`)
       : ["- 未发现明确问题"]),
     "",
     `## 执行轨迹`,
-    ...timeline.map((t) => `- ${t.step}. \`${t.action}\` ${t.ok ? "✅" : "❌"} ${t.summary.slice(0, 120)}`),
+    ...timeline.map((t) => `- ${t.step}. \`${t.action}\` ${t.ok ? "✅" : "❌"} ${redactText(t.summary.slice(0, 120))}`),
     "",
-    snapshotContext ? `\n## 最终快照\n\`\`\`\n${snapshotContext.slice(0, 1500)}\n\`\`\`` : "",
+    snapshotContext ? `\n## 最终快照\n\`\`\`\n${redactText(snapshotContext.slice(0, 1500))}\n\`\`\`` : "",
   ].join("\n");
 
   return { goal, url, ok, findings, timeline, snapshotContext, markdown };

@@ -10,6 +10,7 @@
 import { ForgeMcp } from "./forge-mcp.js";
 import { createCnbStdioServer, createCnbHttpServer, runCiCheck, runDebugSession } from "./adapters/cnb.js";
 import { buildHarnessFunctionSchemas } from "./adapters/harness.js";
+import { httpAuthConfigFromEnv, generateApiToken } from "./security.js";
 
 function parseArgs(argv: string[]) {
   const args: Record<string, string> = {};
@@ -78,11 +79,24 @@ if (args["ci-spec"]) {
   process.exit(result.ok ? 0 : 1);
 }
 
+if (args["gen-token"]) {
+  // 生成一个安全的 API Token，供 FORGE_HTTP_TOKEN 使用
+  console.log(generateApiToken());
+  process.exit(0);
+}
+
 if (args.http) {
   const port = Number(args.port || 8787);
-  createCnbHttpServer(mcp, port);
+  const auth = httpAuthConfigFromEnv();
+  createCnbHttpServer(mcp, port, auth);
   console.log(`Forge MCP HTTP 服务已启动: http://localhost:${port}  (health: /health)`);
   console.log(`POST /tools/call  body: {"name":"observe","arguments":{}}`);
+  if (auth.enabled) {
+    console.log(`[安全] 已启用 Bearer Token 鉴权（FORGE_HTTP_TOKEN），需带 Authorization: Bearer <token> 访问。`);
+  } else {
+    console.log(`[安全] 未配置 FORGE_HTTP_TOKEN，默认仅允许本机回环访问（FORGE_HTTP_LOOPBACK_ONLY=true）。`);
+    console.log(`      如需远程访问请设置环境变量 FORGE_HTTP_TOKEN 与 FORGE_HTTP_ALLOWED_ORIGINS。`);
+  }
 } else {
   // 默认 stdio
   createCnbStdioServer(mcp)();

@@ -18,6 +18,7 @@ import type {
   ForgeAnyEvent,
   EventListener,
 } from "./events.js";
+import { redactDeep, redactText } from "./security.js";
 
 export interface SessionLoggerOptions {
   /** 会话 id（缺省自动生成） */
@@ -146,7 +147,7 @@ export class SessionLogger {
     this.seq = 0;
   }
 
-  /** 导出为 markdown（供外部 AI / PR 评论 / 制品消费） */
+  /** 导出为 markdown（供外部 AI / PR 评论 / 制品消费），对消息与 payload 脱敏防令牌泄露 */
   exportMarkdown(opts: { title?: string; includeScreenshots?: boolean } = {}): string {
     const lines: string[] = [];
     lines.push(`# ${opts.title ?? "Forge 会话事件日志"}`);
@@ -155,23 +156,24 @@ export class SessionLogger {
     for (const e of this.events) {
       const t = new Date(e.ts).toISOString().replace("T", " ").slice(0, 19);
       const tag = `[${e.level.toUpperCase()}/${e.category}]`;
+      const msg = redactText(e.message);
       if (e.category === "error") {
         const err = (e as ForgeErrorEvent).error;
-        lines.push(`- \`${t}\` **${tag}** ${e.message}`);
+        lines.push(`- \`${t}\` **${tag}** ${msg}`);
         lines.push(`  - 错误码: \`${err.code}\` | 根因: ${err.reason}`);
-        if (err.explanation) lines.push(`  - 原因: ${err.explanation}`);
-        if (err.suggestion) lines.push(`  - 建议: ${err.suggestion}`);
+        if (err.explanation) lines.push(`  - 原因: ${redactText(err.explanation)}`);
+        if (err.suggestion) lines.push(`  - 建议: ${redactText(err.suggestion)}`);
       } else if (e.category === "screenshot") {
         const img = (e as ScreenshotEvent).image;
-        lines.push(`- \`${t}\` **${tag}** ${e.message}`);
+        lines.push(`- \`${t}\` **${tag}** ${msg}`);
         if (opts.includeScreenshots) {
           lines.push(`  - ![截图](./forge-event-${e.seq}.png)`);
         }
       } else {
-        lines.push(`- \`${t}\` **${tag}** ${e.message}`);
+        lines.push(`- \`${t}\` **${tag}** ${msg}`);
       }
       if (e.payload && Object.keys(e.payload).length) {
-        const p = JSON.stringify(e.payload);
+        const p = JSON.stringify(redactDeep(e.payload));
         if (p.length <= 400) lines.push(`  - payload: \`${p}\``);
       }
     }
