@@ -124,12 +124,35 @@ npm run build
 node examples/quickstart.mjs
 ```
 
+> ⚠️ **首次使用真实浏览器自动化，必须额外安装 Chromium**：
+>
+> ```bash
+> npx playwright install chromium
+> ```
+>
+> 仅 `npm install` 不会自动下载 Playwright 浏览器。
+
+## 依赖说明
+
+Browser AI Forge 是基于 **npm workspace** 的多包项目，克隆后需要准备以下运行环境与依赖：
+
+- **运行环境**：Node.js >= 20（推荐 22 LTS）、npm、Playwright 托管的 Chromium、网络访问。
+- **外部 npm 依赖**：仅 `playwright`（引擎层）与 `zod`（核心层运行时校验）两个生产依赖；
+  其余 `@browser-ai-forge/*` 均为仓库内部包，无需单独安装。
+- **构建/测试**：`typescript`、`vitest`、`@types/node`。
+- **完整安装流程**：`npm install` → `npm run build` → `npx playwright install chromium`。
+
+> 完整、可照做的依赖说明（含内部 Workspace 依赖树、DeepSeek Harness 集成依赖、
+> 实测版本与常见注意事项）请查看
+> **[docs/dependencies.md](docs/dependencies.md)**，或根目录独立文档 **[DEPENDENCIES.md](DEPENDENCIES.md)**。
+
 ## 文档
 
 - [架构设计](docs/architecture.md)
 - [调试诊断中心](docs/diagnosis.md)
 - [MCP / deepseek harness 适配](docs/mcp-integration.md)
 - [Token 策略](docs/token-strategy.md)
+- [依赖说明](docs/dependencies.md)
 
 ## License
 
