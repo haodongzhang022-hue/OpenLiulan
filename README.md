@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚀 OpenLiulan · 开放浏览
+# 🚀 dsh-OpenLiulan · 开放浏览
 
 > **开「浏览」之眼，赋「AI」以行动** —— 让 AI 真正看懂网页、精准操作、自愈排障的下一代浏览器控制框架。
 
