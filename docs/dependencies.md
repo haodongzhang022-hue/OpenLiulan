@@ -1,6 +1,6 @@
-# OpenLiulan 依赖说明
+# dsh-OpenLiulan 依赖说明
 
-> 本文档完整说明 **OpenLiulan** 的运行环境、直接依赖、内部 Workspace 依赖、
+> 本文档完整说明 **dsh-OpenLiulan** 的运行环境、直接依赖、内部 Workspace 依赖、
 > 安装步骤、DeepSeek Harness 集成依赖以及实测验证版本，方便用户克隆后开箱即用。
 
 ---

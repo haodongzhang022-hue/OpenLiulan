@@ -1,4 +1,4 @@
-# OpenLiulan 依赖说明
+# dsh-OpenLiulan 依赖说明
 
 > 独立依赖说明，克隆仓库后请以此为准准备运行环境与依赖。
 > 完整文档见 [docs/dependencies.md](docs/dependencies.md)。

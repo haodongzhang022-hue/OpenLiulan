@@ -4,7 +4,7 @@
 
 > **开「浏览」之眼，赋「AI」以行动** —— 让 AI 真正看懂网页、精准操作、自愈排障的下一代浏览器控制框架。
 
-**OpenLiulan（开放浏览）** 整合 **Browser-Use / Stagehand / Chrome DevTools MCP / Playwright MCP**
+**dsh-OpenLiulan（开放浏览）** 整合 **Browser-Use / Stagehand / Chrome DevTools MCP / Playwright MCP**
 四大浏览器自动化项目的精华，为 AI Agent 打造「**精确操作 + 深度调试诊断 + 高效 Token**」的一体化能力，
 开箱即用地接入 **DeepSeek Harness** 与 **cnb.cool** 生态。
 
@@ -14,11 +14,11 @@
 
 ---
 
-## ✨ 为什么选择 OpenLiulan？
+## ✨ 为什么选择 dsh-OpenLiulan？
 
-市面上浏览器自动化工具很多，但**各有短板**。OpenLiulan 把它们的长处拼在一起，取长补短：
+市面上浏览器自动化工具很多，但**各有短板**。dsh-OpenLiulan 把它们的长处拼在一起，取长补短：
 
-| 维度 | Browser-Use | Stagehand | Chrome DevTools MCP | Playwright MCP | **OpenLiulan** |
+| 维度 | Browser-Use | Stagehand | Chrome DevTools MCP | Playwright MCP | **dsh-OpenLiulan** |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | 🧠 AI 语义层 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐⭐ **脚本化语义** |
 | 🎯 操作精确性 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐⭐ **变化触发+图色等待** |
@@ -27,18 +27,18 @@
 | 🔌 MCP 集成 | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐⭐ **统一接入** |
 | 🛠️ 双引擎 | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐⭐ **CDP + Playwright** |
 
-> **横向对比结论**：OpenLiulan **全维度 6 星起步**（在 5 星基础上额外整合新功能），取各家之长、补齐各家之短——这是本项目从立项起就锁定的**开发目标**。
+> **横向对比结论**：dsh-OpenLiulan **全维度 6 星起步**（在 5 星基础上额外整合新功能），取各家之长、补齐各家之短——这是本项目从立项起就锁定的**开发目标**。
 > 规则很简单：**原有 5 星能力的维度，就如实打 5 星起步；在 5 星基础上又额外整合了新功能的，才算 6 星**。
 > 本版语义层 / 操作精确性 / Token 效率 / 调试诊断四项，均在 5 星基础上**额外整合了竞品不具备的独占能力**（动作脚本化缓存触发、轮询换检测+图色等待、脚本零 Token 回放、云端匹配直接解决），故如实升级 6 星；
 > MCP 集成与双引擎延续 6 星。**每一项 6 星都对应真实代码模块 + 测试（见下方「6 星能力逐项拆解」），绝不虚标**。
 
 > 🔎 **最后两行竞品怎么打星（客观对标，不虚标）**
-> - **🔌 MCP 集成**：Chrome DevTools MCP 本身就是官方原生 MCP、面向 MCP 调用原生设计，拿 **5 星**；Browser-Use / Playwright MCP 各有官方 MCP 但单服务器、部分能力标注过时，各拿 **4 星**；Stagehand MCP 仍在实验期、未打磨到位，**3 星**。OpenLiulan 把四者统一进**一个 MCP Server**（并叠加 stdio/HTTP/harness/CI 多接入），故 **6 星**。
-> - **🛠️ 双引擎**：Browser-Use / Stagehand 底层都是 Playwright 单引擎，各 **2 星**；Chrome DevTools MCP 走纯 CDP、单通道，**3 星**；Playwright MCP 支持 Playwright + CDP 双通道连接，**4 星**。OpenLiulan 做到 **CDP + Playwright 真双引擎、同份代码无缝切换**（竞品做不到），故 **6 星**。
+> - **🔌 MCP 集成**：Chrome DevTools MCP 本身就是官方原生 MCP、面向 MCP 调用原生设计，拿 **5 星**；Browser-Use / Playwright MCP 各有官方 MCP 但单服务器、部分能力标注过时，各拿 **4 星**；Stagehand MCP 仍在实验期、未打磨到位，**3 星**。dsh-OpenLiulan 把四者统一进**一个 MCP Server**（并叠加 stdio/HTTP/harness/CI 多接入），故 **6 星**。
+> - **🛠️ 双引擎**：Browser-Use / Stagehand 底层都是 Playwright 单引擎，各 **2 星**；Chrome DevTools MCP 走纯 CDP、单通道，**3 星**；Playwright MCP 支持 Playwright + CDP 双通道连接，**4 星**。dsh-OpenLiulan 做到 **CDP + Playwright 真双引擎、同份代码无缝切换**（竞品做不到），故 **6 星**。
 
 ### 🔍 逐维拆解：每一颗星都落得到地
 
-为什么 OpenLiulan 敢对标竞品全维度打满 **6 星**？因为每一项都对应**真实存在的代码模块**，而非宣传文案；
+为什么 dsh-OpenLiulan 敢对标竞品全维度打满 **6 星**？因为每一项都对应**真实存在的代码模块**，而非宣传文案；
 每一项 6 星都是在 5 星能力之上**额外整合了新功能**的独占能力：
 
 | 维度 | 星级 | 凭什么（在 5 星基础上额外整合了什么） | 对应能力 / 模块 |
@@ -53,7 +53,7 @@
 > 每一项星级承诺，都是「**继续开发直到真正达成**」的目标：能打满就亮满，打不满就继续迭代，而不是降级成文字糊弄过去——因为**星星对比丢了，优势也就不直观了**。
 > 规则很简单：**原有 5 星能力的维度，就如实打 5 星；在 5 星基础上又额外整合了新功能的，才算 6 星**。
 
-> **一句话**：别人给 AI 的是「手」，OpenLiulan 给 AI 的是一双**能看、能查、能自愈、能积累经验、全维度 6 星封顶的眼睛**。
+> **一句话**：别人给 AI 的是「手」，dsh-OpenLiulan 给 AI 的是一双**能看、能查、能自愈、能积累经验、全维度 6 星封顶的眼睛**。
 
 ---
 
@@ -167,7 +167,7 @@ flowchart LR
 
 ```
 全量 DOM dump        → 约 38,000 tokens   ❌ 又贵又慢
-OpenLiulan 快照裁剪   → 约 150 tokens      ✅ 只列可交互索引
+dsh-OpenLiulan 快照裁剪   → 约 150 tokens      ✅ 只列可交互索引
   # 页面: 订单表单 | 节点: 1200 | ≈150 tokens
   ## 可交互元素 (12)
   - r0 <input> "收货人"    - r3 <select> "省份"
@@ -238,14 +238,14 @@ await forge2.act({ type: "click", ref: "r07" });
 ```
 
 > 💡 **六个维度一起看**：别人往往只强一项——Browser-Use 语义强、Stagehand 精确、DevTools MCP 会诊断、Playwright 会底层操作。
-> OpenLiulan 把**语义可脚本化 + 精确到像素级触发 + 零 Token 回放 + 报错即解决 + 统一接入 + 双引擎**六合一，
+> dsh-OpenLiulan 把**语义可脚本化 + 精确到像素级触发 + 零 Token 回放 + 报错即解决 + 统一接入 + 双引擎**六合一，
 > 每一项 5 星之上都真实叠加了新能力，**6 星有理有据，绝不是虚标**。
 
 ---
 
 ## 🎯 它到底能做什么？
 
-OpenLiulan 让 AI 像人一样使用浏览器，并且**比人更靠谱**。它不是又一个「能点按钮」的封装，而是一套**看得见、查得清、自愈得了、对接得上**的完整控制方案：
+dsh-OpenLiulan 让 AI 像人一样使用浏览器，并且**比人更靠谱**。它不是又一个「能点按钮」的封装，而是一套**看得见、查得清、自愈得了、对接得上**的完整控制方案：
 
 - 🧭 **自然语言操控网页** —— 把「帮我打开登录页并排查报错」翻译成精确的浏览器动作序列；
 - 🔍 **自带眼睛看网页** —— 直接读取真实 DOM、控制台、网络请求、JS 异常，不再隔着代码瞎猜；
@@ -264,7 +264,7 @@ OpenLiulan 让 AI 像人一样使用浏览器，并且**比人更靠谱**。它�
 ## 🏗️ 架构一览
 
 ```
-openliulan/
+dsh-openliulan/
 ├── packages/
 │   ├── core/          # 🧠 核心调度引擎（动作编排、状态机、页面快照）
 │   ├── engines/       # 🛠️ 底层驱动适配（Playwright / CDP 双引擎 + Stealth 集成）
@@ -288,7 +288,7 @@ openliulan/
 
 ### 👁️ 自带眼睛：看到即行动，行动即反馈
 
-OpenLiulan 直接连接真实浏览器，能第一时间观察到 **DOM、控制台、网络、JS 异常**等一手信息。
+dsh-OpenLiulan 直接连接真实浏览器，能第一时间观察到 **DOM、控制台、网络、JS 异常**等一手信息。
 调试反馈不再是「猜」，而是**可行动的结论**。
 
 ### 🚑 自愈调试：双模式任你选
@@ -322,7 +322,7 @@ OpenLiulan 直接连接真实浏览器，能第一时间观察到 **DOM、控制
 
 ### 🧰 可用性增强：开箱即用，省心稳定
 
-不止「能力有多强」，更在意「好不好用」。OpenLiulan 在工程可用性上做了整套打磨：
+不止「能力有多强」，更在意「好不好用」。dsh-OpenLiulan 在工程可用性上做了整套打磨：
 
 - ⏱️ **整环超时 + 失败去重升级** —— `timeoutMs` 防死循环，同一失败累计到 `maxRetries` 即升级停止自动修复，不无脑重试；
 - 🛑 **结束原因可观测** —— `stopReason` 明确告诉你「为何退出」（目标达成 / 超时 / 重试耗尽 / 转交开发 AI），工程上能清晰判断；
@@ -383,7 +383,7 @@ const result = await runAgentLoop(mcp, toHarnessTools(mcp), {
 
 ## 📦 依赖说明
 
-OpenLiulan 基于 **npm workspace**，克隆后需准备：
+dsh-OpenLiulan 基于 **npm workspace**，克隆后需准备：
 
 | 类别 | 依赖 | 版本 | 用途 |
 | :--- | :--- | :--- | :--- |
@@ -456,7 +456,7 @@ IPv4-mapped IPv6、组播/保留段、`.local` 域名等；webhook 投递统一�
 
 ## 🚦 最后的跟进：从「能用」到「好用、敢用、持续生长」
 
-OpenLiulan 的定位不只是「跑通一个 demo」，而是成为 AI 浏览器控制里**敢在生产上用、值得持续迭代**的框架。这轮收尾做了三层跟进：
+dsh-OpenLiulan 的定位不只是「跑通一个 demo」，而是成为 AI 浏览器控制里**敢在生产上用、值得持续迭代**的框架。这轮收尾做了三层跟进：
 
 ### 1️⃣ 能力补全 —— 对比上全维度 5 星起步，集大成处 6 星封顶
 
@@ -480,7 +480,7 @@ OpenLiulan 的定位不只是「跑通一个 demo」，而是成为 AI 浏览器
 - 功能测试与单元测试同等重要，让框架的「可用」建立在**可证明**之上。
 
 > **结语**：从立项的「全维度 5 星起步、集大成处 6 星封顶」目标，到工程可用性的全套打磨，再到真实场景的自检验证——
-> OpenLiulan 正在从「整合四个项目的 demo」成长为**生产可用、持续生长**的 AI 浏览器控制框架。
+> dsh-OpenLiulan 正在从「整合四个项目的 demo」成长为**生产可用、持续生长**的 AI 浏览器控制框架。
 > 欢迎试用、Star、并提 Issue，和我们一起把它打磨得更好。
 
 ---
@@ -499,7 +499,7 @@ OpenLiulan 的定位不只是「跑通一个 demo」，而是成为 AI 浏览器
 
 | 包名 | 版本 |
 | :--- | :--- |
-| openliulan（根） | 1.0.0 |
+| dsh-openliulan（根） | 1.0.0 |
 | @openliulan/core | 1.0.0 |
 | @openliulan/engines | 1.0.0 |
 | @openliulan/diagnosis | 1.0.0 |
@@ -554,7 +554,7 @@ OpenLiulan 的定位不只是「跑通一个 demo」，而是成为 AI 浏览器
 
 <div align="center">
 
-**OpenLiulan · 开放浏览** — 让每一个 AI 都长出一双会浏览的「眼睛」
+**dsh-OpenLiulan · 开放浏览** — 让每一个 AI 都长出一双会浏览的「眼睛」
 
 ⭐ 如果它对你有帮助，欢迎 Star 支持！⭐
 

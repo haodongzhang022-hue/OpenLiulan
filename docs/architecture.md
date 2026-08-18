@@ -1,6 +1,6 @@
 # 架构设计
 
-OpenLiulan 整合了 **Browser-Use / Stagehand / Chrome DevTools MCP / Playwright MCP** 四大项目，形成「**一个门面、双引擎、五层能力**」的架构。
+dsh-OpenLiulan 整合了 **Browser-Use / Stagehand / Chrome DevTools MCP / Playwright MCP** 四大项目，形成「**一个门面、双引擎、五层能力**」的架构。
 
 ## 分层架构
 
