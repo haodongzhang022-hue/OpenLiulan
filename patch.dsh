@@ -1,0 +1,13 @@
+# OpenLiulan MCP Server - dsh bundle patch
+# Adds the browser automation MCP server to dsh
+# Installed via: dsh plugin --profile web add github:haodongzhang022-hue/OpenLiulan
+
+dsh.plugin.name = "dsh-browser-forge"
+dsh.plugin.version = "1.0.0"
+dsh.plugin.description = "Browser automation MCP framework: observe/act/diagnose/eval/screenshot/session_log/close"
+
+# Add MCP server configuration
+dsh.mcp.servers.dsh-browser-forge.command = "node"
+dsh.mcp.servers.dsh-browser-forge.args = ["./packages/mcp-server/dist/cli.js"]
+dsh.mcp.servers.dsh-browser-forge.cwd = "{pluginDir}"
+dsh.mcp.servers.dsh-browser-forge.description = "OpenLiulan browser automation MCP server"

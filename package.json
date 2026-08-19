@@ -22,6 +22,11 @@
     "browser-use",
     "stagehand"
   ],
+  "dsh": {
+    "bundle": {
+      "patch": "patch.dsh"
+    }
+  },
   "devDependencies": {
     "typescript": "^5.5.0",
     "vitest": "^3.2.7"
