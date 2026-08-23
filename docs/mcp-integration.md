@@ -37,6 +37,15 @@ const tools = toHarnessTools(mcp);
 
 > deepseek harness 端只需把 `schemas` 传入 function calling 配置，然后在循环里调用 `tools` 即可完成「规划 → 观察 → 行动 → 诊断」闭环。
 
+#### r7 版本适配说明（已完成）
+
+适配**不依赖 harness 具体版本号**，而是基于两条**协议无关**的标准通道，天然兼容 deepseek harness 当前及后续版本（含 r7）：
+
+1. **标准 MCP stdio 服务**（推荐，供 `@deepseek-ai/dsh-mcp-client` 使用）：`forge-mcp --stdio` 暴露标准 `initialize / tools/list / tools/call`，工具定义完整规范（observe / act / diagnose / eval / screenshot / session_log / close / stealth_status），客户端无需针对版本适配即可发现并调用全部工具；
+2. **OpenAI 兼容 function calling schema**（供直接注入 tool_loop）：`buildHarnessFunctionSchemas` 输出标准 `{type:"function",function:{name,description,parameters}}`，r7 的原生 function-calling / 多步思考可直接消费。
+
+> 针对 r7 强化的「原生 tool_loop + thinking + 多步规划」，Forge 另提供自愈 `runAgentLoop`（见下节），把 harness 的规划能力与 Forge 的 5 星诊断闭环成自动化排障代理，做到「不是能用，而是增强」。
+
 ### 增强：自愈 AgentLoop + 双调试模式（自带眼睛 & 控制/诊断分离）
 
 相比仅暴露裸工具，Forge 提供**自动化排障代理** `runAgentLoop`，把 deepseek 的
