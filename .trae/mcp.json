@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "OpenLiulan": {
+      "command": "node",
+      "args": [
+        "packages/mcp-server/dist/cli.js",
+        "--stdio"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {},
+      "description": "OpenLiulan unified browser automation, testing, and diagnostics MCP. Use it as the default browser MCP for this workspace."
+    }
+  }
+}
