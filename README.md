@@ -6,7 +6,7 @@
 
 **dsh-OpenLiulan（开放浏览）** 整合 **Browser-Use / Stagehand / Chrome DevTools MCP / Playwright MCP**
 四大浏览器自动化项目的精华，为 AI Agent 打造「**精确操作 + 深度调试诊断 + 高效 Token**」的一体化能力，
-开箱即用地接入 **DeepSeek Harness** 与 **cnb.cool** 生态。
+开箱即用地接入 **DeepSeek Harness**、**cnb.cool** 及 **Trae / OpenCode** 生态。
 
 `TypeScript` · `npm workspace` · `MIT License` · 统一 MCP Server · 自带眼睛 · 自愈调试
 
@@ -47,7 +47,7 @@
 | 🎯 **操作精确性** | ⭐⭐⭐⭐⭐⭐ | 5 星对齐 Stagehand 强定位之上，**额外整合轮询换检测 + 图色识别等待触发** | `locator` + `scripting/ChangeWatcher`：多策略定位、`waitForColor(x,y,rgb)` 图色触发、`waitForSelector/Text` 变化触发 |
 | ⚡ **Token 效率** | ⭐⭐⭐⭐⭐⭐ | 5 星继承 DevTools MCP 精简之上，**额外整合脚本零 Token 回放 + 按页脚本市场** | `token` + `scripting/ScriptPlayer`：快照裁剪、增量读取、重复操作脚本回放不走 LLM、按页面地址分类互荐 |
 | 🔍 **调试/诊断** | ⭐⭐⭐⭐⭐⭐ | 5 星对标 DevTools MCP 六维诊断之上，**额外整合连贯事件日志 + AI 云端匹配直接解决** | `diagnosis` + `mcp-server`：六维采集、`SessionLogger` 事件流、`SolutionRepository` 方案库自动匹配直接解决 |
-| 🔌 **MCP 集成** | ⭐⭐⭐⭐⭐⭐ | 5 星统一接入之上，**额外整合多种新接入方式**（stdio / HTTP / harness / CI） | `mcp-server` 统一 MCP 服务 + deepseek / cnb.cool 双适配 |
+| 🔌 **MCP 集成** | ⭐⭐⭐⭐⭐⭐ | 5 星统一接入之上，**额外整合多种新接入方式**（stdio / HTTP / harness / CI / Trae / OpenCode） | `mcp-server` 统一 MCP 服务 + deepseek / cnb.cool / trae / opencode 适配 |
 | 🛠️ **双引擎** | ⭐⭐⭐⭐⭐⭐ | 5 星能力之上，**额外整合 CDP + Playwright 双底层（竞品做不到的独占能力）** | `engines`：Playwright 引擎 + CDP 直连 `connectUrl` |
 
 > 每一项星级承诺，都是「**继续开发直到真正达成**」的目标：能打满就亮满，打不满就继续迭代，而不是降级成文字糊弄过去——因为**星星对比丢了，优势也就不直观了**。
@@ -217,8 +217,8 @@ flowchart TD
 ### 🔌 MCP 集成 & 🛠️ 双引擎 —— 6 星「统一接入 + 双引擎」
 
 **强化了什么（5 星 → 6 星）**：
-- **MCP 统一接入**：Browser-Use / Stagehand / DevTools MCP / Playwright MCP 四合一，一套规范动作对接 DeepSeek Harness 与 cnb.cool；
-- **多接入方式**：同一套 `ForgeMcp` 内核同时服务 stdio / HTTP / harness 函数调用 / CI-Pipeline，传输层解耦、协议无关；
+- **MCP 统一接入**：Browser-Use / Stagehand / DevTools MCP / Playwright MCP 四合一，一套规范动作对接 DeepSeek Harness / cnb.cool / Trae / OpenCode；
+- **多接入方式**：同一套 `ForgeMcp` 内核同时服务 stdio / HTTP / harness 函数调用 / CI-Pipeline / IDE 项目级 MCP（Trae `.trae/mcp.json`、OpenCode `opencode.jsonc`），传输层解耦、协议无关；
 - **双引擎**：Playwright + CDP 双驱动自由切换，一份代码两种底层能力——日常 headless 自动化用 Playwright，调试已开页面用 CDP 直连 `connectUrl`。
 
 **🛠️ 真实案例（同一份代码，无缝切换两种底层）**：
@@ -274,7 +274,7 @@ dsh-openliulan/
 │   ├── token/         # ⚡ Token 高效提取策略
 │   ├── stealth/       # 🕵️ 防检测模块（反指纹/反爬虫/人类行为模拟）
 │   ├── viz/           # 🎬 条件触发式可视化调试面板（AI 伦理透明化）
-│   └── mcp-server/    # 🔌 统一 MCP Server + deepseek/cnb 适配
+│   └── mcp-server/    # 🔌 统一 MCP Server + deepseek/cnb/trae/opencode 适配
 │       ├── events/    # 📡 事件协议（动作/诊断/错误/截图/日志）
 │       ├── logger/    # 📋 会话事件日志器（SessionLogger）
 │       └── message/   # 💬 AI 协作消息协议（AIMessage）
@@ -327,7 +327,7 @@ dsh-OpenLiulan 直接连接真实浏览器，能第一时间观察到 **DOM、�
 - ⏱️ **整环超时 + 失败去重升级** —— `timeoutMs` 防死循环，同一失败累计到 `maxRetries` 即升级停止自动修复，不无脑重试；
 - 🛑 **结束原因可观测** —— `stopReason` 明确告诉你「为何退出」（目标达成 / 超时 / 重试耗尽 / 转交开发 AI），工程上能清晰判断；
 - 🧩 **参数 schema 完整声明** —— `act` 的 `fullPage` / `deltaY` / `waitUntil` 等参数全部声明，避免 IDE 的 function calling 因参数未声明而**隐藏能力**；
-- 🔌 **多种接入方式任选** —— stdio MCP、HTTP webhook、deepseek harness、cnb CI 冒烟，同一套内核处处可用；
+- 🔌 **多种接入方式任选** —— stdio MCP、HTTP webhook、deepseek harness、cnb CI 冒烟、Trae/OpenCode 项目级 MCP，同一套内核处处可用；
 - 🖼️ **HTTP 与 stdio 行为一致** —— 截图都序列化为标准 MCP `image` 块，多模态 IDE 无需自行解析；
 - 🛡️ **真实场景自检** —— 用真实浏览器 + HTTP 服务端到端验收，把「功能在真实攻击下是否真的安全」也纳入验收。
 
@@ -405,6 +405,7 @@ dsh-OpenLiulan 基于 **npm workspace**，克隆后需准备：
 | [架构设计](docs/architecture.md) | 整体架构、门面、双引擎、五层能力 |
 | [调试诊断中心](docs/diagnosis.md) | 5 星诊断能力详解 |
 | [MCP / Harness 适配](docs/mcp-integration.md) | DeepSeek Harness 与 cnb.cool 接入 |
+| [MCP 管理中心接入](docs/mcp-management.md) | DeepSeek Harness / Trae / OpenCode 接入指南 |
 | [AI 协作消息](docs/ai-collaboration.md) | 日志 / 图片 / 错误传递协议 |
 | [Token 策略](docs/token-strategy.md) | 高效提取与省电策略 |
 | [依赖说明](docs/dependencies.md) | 完整依赖与安装指引 |

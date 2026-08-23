@@ -406,6 +406,23 @@ CLI 也支持透传：`forge-mcp --ci-spec ./ci-spec.json --solution-repo ./solu
 失败即驱动 CI 红/绿，方案库沉淀随构建积累——把「真实验收 + 在线库成长」固化为持续流程。
 
 
+## IDE / 工具链项目级接入（Trae / OpenCode）
+
+除 deepseek harness 与 cnb.cool 之外，本仓库还直接提供了 **Trae** 与 **OpenCode** 两类
+**项目级 MCP 接入**，方便在对应 IDE / 工具链中以仓库相对路径零配置启动 `OpenLiulan`：
+
+| 接入对象 | 项目级配置 | 说明 |
+| :--- | :--- | :--- |
+| Trae | [`../.trae/mcp.json`](../.trae/mcp.json) | 以本仓库为 workspace 打开即可发现 `OpenLiulan` MCP |
+| OpenCode | [`../opencode.jsonc`](../opencode.jsonc) | 项目级 `mcp` 条目，直接启用 `openliulan` 本地 MCP |
+
+> 两类配置均以仓库相对路径指向 `packages/mcp-server/dist/cli.js`（`--stdio`），免去全局
+> 绝对路径的重复维护；全局使用时可参考下方文档改用绝对路径。
+
+完整的分步接入指南（含 DeepSeek Harness / Trae / OpenCode、全局配置示例与 Windows 说明）见
+**[docs/mcp-management.md](./mcp-management.md)**。
+
+
 ## CDP 直连（复用 DevTools 调试通道）
 
 当需要调试**真实运行中的浏览器**时，连接其 CDP 端点：
