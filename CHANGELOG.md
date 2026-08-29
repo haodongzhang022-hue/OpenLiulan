@@ -5,7 +5,24 @@
 
 ---
 
+## 最新版本（最高权重）· v1.2.0 — 可安装 DSH 插件包（2026-08-29）
+
+v1.2.0 把 dsh-OpenLiulan 从「源码接入」升级为「一行命令可安装的 **DSH 插件包**」，对标 DSH Plugin Hub 的一键安装体验：
+
+| 增强点 | 做了什么 |
+| :--- | :--- |
+| 可安装插件包 | 顶层包更名 `@openliulan/dsh-openliulan`，声明 `dsh.bundle.patch → cordis.patch.yml`，`main/exports/files` 只暴露自包含 `lib/index.js` + 装配补丁 |
+| 一条命令安装 | `dsh plugin --profile web add <cnb.cool|GitHub|npm>` 即可装进 dsh web profile；安装器自动把插件并入 `dsh.profile.bundles` 装配层 |
+| 自包含构建 | `scripts/build-plugin.mjs` 用 esbuild 把所有 `@openliulan/*` 源码内联成单文件，仅外置已发布的 `playwright`，不依赖任何未发布包即可被他人安装 |
+| 进程内插件入口 | `src/plugin.ts` 的 `apply(ctx)` 构造进程内 ForgeMcp，把 8 个浏览器工具以 `browser_*` 前缀注册为 harness 原生工具 |
+| 装配补丁 | `cordis.patch.yml` 声明插件 `insert`，`prefix: browser`、无头模式均可覆盖 |
+| 分发作自动 | 增加 `prepare` 脚本，git 源码通道克隆即构建；`lib/` 入库保证即使构建被拦也能直接装配 |
+
+---
+
 ## 最新版本（最高权重）· v1.1.0 — DeepSeek Harness 接入适配增强（2026-08-29）
+
+
 
 v1.1.0 是「从自研可调，到生态里开箱即接」的一轮增强：把 OpenLiulan 统一 MCP Server 直接接进 **DeepSeek Harness** 运行环境（profile `@deepseek-ai/dsh-mcp-client`），并补齐 Trae / OpenCode 三客户端一键接入。
 
@@ -49,5 +66,6 @@ v1.1.0 是「从自研可调，到生态里开箱即接」的一轮增强：把 
 
 | 版本 | 时间戳 | 一句话 |
 | :--- | :--- | :--- |
+| **v1.2.0** | 2026-08-29 | 可安装 DSH 插件包：一个命令安装到 dsh profile（cnb.cool/GitHub/npm） |
 | **v1.1.0** | 2026-08-29 | DeepSeek Harness 接入适配增强（Harness/Trae/OpenCode 开箱即接） |
 | v1.0.0 | 2026-08-18 | 首个正式版：四合一框架 + 自愈调试 + 6星能力 + 双引擎 + 安全加固 |

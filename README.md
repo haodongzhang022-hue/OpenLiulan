@@ -14,6 +14,34 @@
 
 ---
 
+## 📦 DSH 插件：一条命令安装与升级
+
+自 **v1.2.0（2026-08-29）** 起，dsh-OpenLiulan 打包为**可安装的 DSH 插件包**（`@openliulan/dsh-openliulan`）：
+它声明 `dsh.bundle.patch` 指向 `cordis.patch.yml`，把进程内 Forge 浏览器工具（`browser_observe` / `browser_act` / `browser_diagnose` / `browser_eval` / `browser_screenshot` / `browser_session_log` / `browser_close` / `browser_stealth_status`）一条命令装进 **dsh web profile**，装完重启 dsh web 即生效——无需手改配置、无需额外装 MCP。
+
+### 一键安装（三种通道，任选其一）
+
+| 通道 | 命令 |
+| :--- | :--- |
+| cnb.cool 源码（本仓库官方源） | `dsh plugin --profile web add git+https://cnb.cool/dongdongxiaozu/OpenLiulan.git` |
+| GitHub 源码 | `dsh plugin --profile web add github:haodongzhang022-hue/OpenLiulan` |
+| npm 包（发布后） | `dsh plugin --profile web add @openliulan/dsh-openliulan` |
+
+> **原理**：`dsh plugin` 本质就是在 profile 目录执行 `pnpm add <spec>`；安装器据安装后状态扫描每个声明 `dsh.bundle.patch` 的依赖，自动把它并入 `dsh.profile.bundles` 装配层。源码通道所需的 `prepare` 构建已内联，安装即产出 `lib/index.js`（该文件也已入库，双重保险）。
+>
+> **pnpm ≥ 10 提示**：若源码通道被 pnpm 的 allowBuilds 拦截，把 pnpm 打印的精确 key 加入 profile 下 `pnpm-workspace.yaml` 的 `allowBuilds`，再重跑命令即可。
+
+### 升级 / 重装
+
+```bash
+dsh plugin --profile web update @openliulan/dsh-openliulan     # 常规升级
+dsh plugin --profile web add @openliulan/dsh-openliulan@latest # 旧版本缺陷无法拉取时的强制重装
+```
+
+装完/升级后重启 `dsh web`，在「设置 → 插件中心」即可见已安装插件与 `browser_*` 工具。
+
+---
+
 ## ✨ 为什么选择 dsh-OpenLiulan？
 
 市面上浏览器自动化工具很多，但**各有短板**。dsh-OpenLiulan 把它们的长处拼在一起，取长补短：
