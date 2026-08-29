@@ -16,7 +16,7 @@ v1.2.0 把 dsh-OpenLiulan 从「源码接入」升级为「一行命令可安装
 | 自包含构建 | `scripts/build-plugin.mjs` 用 esbuild 把所有 `@openliulan/*` 源码内联成单文件，仅外置已发布的 `playwright`，不依赖任何未发布包即可被他人安装 |
 | 进程内插件入口 | `src/plugin.ts` 的 `apply(ctx)` 构造进程内 ForgeMcp，把 8 个浏览器工具以 `browser_*` 前缀注册为 harness 原生工具 |
 | 装配补丁 | `cordis.patch.yml` 声明插件 `insert`，`prefix: browser`、无头模式均可覆盖 |
-| 分发作自动 | 增加 `prepare` 脚本，git 源码通道克隆即构建；`lib/` 入库保证即使构建被拦也能直接装配 |
+| 消费端零构建 | 预构建产物 `lib/index.js` 入库，消费端**无构建脚本**，git 源码通道真正一条命令直装，不被 pnpm allowBuilds 拦截；仅 npm 发布时 `prepack` 自动重建 |
 
 ---
 
