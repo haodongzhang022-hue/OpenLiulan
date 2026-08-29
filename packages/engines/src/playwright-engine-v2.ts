@@ -12,7 +12,7 @@
  * 目前两个类共存，用于渐进式迁移。
  */
 
-import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
+import { chromium, type Browser, type Page, type BrowserContext, type BrowserContextOptions } from "playwright";
 import type {
   BrowserEngine,
   DiagnosticReport,
@@ -101,13 +101,13 @@ export class PlaywrightEngineV2 implements BrowserEngine {
     }
 
     // 创建上下文
-    const ctxOptions: any = { viewport: this.options.viewport };
+    const ctxOptions: Partial<BrowserContextOptions> & { initScript?: string } = { viewport: this.options.viewport };
     if (this.stealth?.isEnabled) {
       const initScript = this.stealth.buildInitScript();
       if (initScript) ctxOptions.initScript = initScript;
       if (this.stealth.options.userAgent) ctxOptions.userAgent = this.stealth.options.userAgent;
     }
-    this.context = this.browser.contexts()[0] || (await this.browser.newContext(ctxOptions));
+    this.context = this.browser.contexts()[0] || (await this.browser.newContext(ctxOptions as BrowserContextOptions));
     this.page = this.context.pages()[0] || (await this.context.newPage());
 
     // 创建插件上下文
@@ -136,7 +136,7 @@ export class PlaywrightEngineV2 implements BrowserEngine {
   private async initializePlugins(): Promise<void> {
     if (!this.ctx) throw new Error("插件上下文未创建");
 
-    // 注册所有内置插件
+    // 第一阶段：创建并注册所有插件
     this.actionExecutor = new PlaywrightActionExecutor();
     this.locatorPlugin = new PlaywrightLocatorPlugin();
     this.snapshotPlugin = new PlaywrightSnapshotPlugin();
@@ -147,15 +147,16 @@ export class PlaywrightEngineV2 implements BrowserEngine {
     this.pluginManager.register(this.snapshotPlugin);
     this.pluginManager.register(this.diagnosticsPlugin);
 
-    // 初始化所有插件
-    await this.pluginManager.initialize(this.ctx);
-
-    // 配置插件间依赖
+    // 第二阶段：在 initialize() 之前配置插件间依赖
+    // 这样可以确保如果 initialize() 中需要访问依赖插件，它们已经被注入
     this.actionExecutor.setLocatorPlugin(this.locatorPlugin);
     this.actionExecutor.setDiagnosticsPlugin(this.diagnosticsPlugin);
     if (this.stealth?.isEnabled) {
       // TODO: 设置 stealth 插件
     }
+
+    // 第三阶段：初始化所有插件
+    await this.pluginManager.initialize(this.ctx);
   }
 
   async close(): Promise<void> {
@@ -169,12 +170,12 @@ export class PlaywrightEngineV2 implements BrowserEngine {
   }
 
   async execute(action: UnifiedAction): Promise<ActionResult> {
-    if (!this.actionExecutor) {
+    if (!this.actionExecutor || !this.ctx) {
       throw new Error("动作执行插件未初始化");
     }
 
     try {
-      const result = await this.actionExecutor.execute(action);
+      const result = await this.actionExecutor.execute(action, this.ctx);
       if (result) return result;
 
       // 如果返回 null，表示插件无法处理

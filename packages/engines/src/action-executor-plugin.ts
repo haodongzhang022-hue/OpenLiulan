@@ -22,7 +22,7 @@ export class PlaywrightActionExecutor implements ActionExecutorPlugin {
   private stealthPlugin?: StealthPlugin;
   private page?: Page;
 
-  canHandle(): boolean {
+  canHandle(action: UnifiedAction): boolean {
     // 此插件处理所有类型的 UnifiedAction
     return true;
   }
@@ -57,7 +57,7 @@ export class PlaywrightActionExecutor implements ActionExecutorPlugin {
     return this;
   }
 
-  async execute(action: UnifiedAction): Promise<ActionResult | null> {
+  async execute(action: UnifiedAction, ctx: EnginePluginContext): Promise<ActionResult | null> {
     if (!this.page) {
       return { ok: false, type: action.type, summary: "页面未初始化", durationMs: 0 };
     }
@@ -93,8 +93,10 @@ export class PlaywrightActionExecutor implements ActionExecutorPlugin {
         case "extract":
           return await this.handleExtract(action, t0);
         default: {
+          // 此行不应被触发（TypeScript 会检查 switch 的穷尽性）
+          // 这是一个安全网络，以防 UnifiedAction 类型在不更新此处的情况下被扩展
           const _exhaustive: never = action;
-          return { ok: false, type: "navigate", summary: "未知动作类型", durationMs: Date.now() - t0 };
+          throw new Error(`未处理的动作类型: ${(_exhaustive as any).type}`);
         }
       }
     } catch (err) {
@@ -161,7 +163,7 @@ export class PlaywrightActionExecutor implements ActionExecutorPlugin {
 
   private async handleFill(action: any, t0: number): Promise<ActionResult> {
     if (!this.locatorPlugin) throw new Error("定位插件未初始化");
-    if (!action.value) throw new Error("fill 动作缺少 value 参数");
+    if (action.value === undefined || action.value === null) throw new Error("fill 动作缺少 value 参数");
 
     const { locator, strategy } = await this.locatorPlugin.locate({
       ref: action.ref,
@@ -182,7 +184,7 @@ export class PlaywrightActionExecutor implements ActionExecutorPlugin {
 
   private async handleType(action: any, t0: number): Promise<ActionResult> {
     if (!this.locatorPlugin) throw new Error("定位插件未初始化");
-    if (!action.value) throw new Error("type 动作缺少 value 参数");
+    if (action.value === undefined || action.value === null) throw new Error("type 动作缺少 value 参数");
 
     const { locator, strategy } = await this.locatorPlugin.locate({
       ref: action.ref,
@@ -207,7 +209,7 @@ export class PlaywrightActionExecutor implements ActionExecutorPlugin {
 
   private async handleSelect(action: any, t0: number): Promise<ActionResult> {
     if (!this.locatorPlugin) throw new Error("定位插件未初始化");
-    if (!action.value) throw new Error("select 动作缺少 value 参数");
+    if (action.value === undefined || action.value === null) throw new Error("select 动作缺少 value 参数");
 
     const { locator, strategy } = await this.locatorPlugin.locate({
       ref: action.ref,
@@ -340,7 +342,6 @@ export class PlaywrightActionExecutor implements ActionExecutorPlugin {
 
   private async handleExtract(action: any, t0: number): Promise<ActionResult> {
     if (!this.locatorPlugin) throw new Error("定位插件未初始化");
-    if (!action.script) throw new Error("extract 动作缺少 script 参数");
 
     const { locator } = await this.locatorPlugin.locate({
       ref: action.ref,
@@ -349,16 +350,17 @@ export class PlaywrightActionExecutor implements ActionExecutorPlugin {
       semantic: action.semantic,
     });
 
-    const result = await locator.evaluate((el: Element) => {
-      // 注意：脚本在浏览器上下文中执行，访问 el 作为第一个参数
-      return eval(action.script); // eslint-disable-line no-eval
+    const data = await locator.evaluate((el: Element) => {
+      const clone = el.cloneNode(true) as HTMLElement;
+      const text = (clone.innerText || clone.textContent || "").replace(/\s+/g, " ").trim();
+      return { text: text.slice(0, 2000) };
     });
 
     return {
       ok: true,
       type: "extract",
       summary: "已提取数据",
-      data: { extracted: result },
+      data,
       durationMs: Date.now() - t0,
     };
   }
