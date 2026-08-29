@@ -92,10 +92,10 @@ export class PlaywrightActionExecutor implements ActionExecutorPlugin {
           return await this.handleAssert(action, t0);
         case "extract":
           return await this.handleExtract(action, t0);
-        case "snapshot":
-          return await this.handleSnapshot(action, t0);
-        default:
-          return { ok: false, type: action.type, summary: "未知动作类型", durationMs: Date.now() - t0 };
+        default: {
+          const _exhaustive: never = action;
+          return { ok: false, type: "navigate", summary: "未知动作类型", durationMs: Date.now() - t0 };
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -361,12 +361,6 @@ export class PlaywrightActionExecutor implements ActionExecutorPlugin {
       data: { extracted: result },
       durationMs: Date.now() - t0,
     };
-  }
-
-  private async handleSnapshot(action: any, t0: number): Promise<ActionResult> {
-    // 这个动作由 PlaywrightEngine 在 observe() 中处理
-    // 在这里只需返回"不处理"
-    return null as any;
   }
 
   /**

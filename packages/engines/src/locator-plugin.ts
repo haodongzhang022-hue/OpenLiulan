@@ -29,18 +29,18 @@ export class RefLocatorStrategy implements LocatorStrategy {
     return !!query.ref;
   }
 
-  async locate(query: LocatorQuery): Promise<Locator | null> {
-    if (!query.ref) return null;
-    const locator = this.locateByRef(query.ref);
+  async locate(query: LocatorQuery, ctx: any): Promise<Locator | null> {
+    if (!query.ref || !ctx.page) return null;
+    const locator = this.locateByRef(query.ref, ctx.page);
     if ((await locator.count()) > 0) {
       return locator.first();
     }
     return null;
   }
 
-  private locateByRef(ref: string): Locator {
+  private locateByRef(ref: string, page: Page): Locator {
     // 使用 data-forge-ref 属性定位
-    return (global as any).__page.locator(`[data-forge-ref="${ref}"]`);
+    return page.locator(`[data-forge-ref="${ref}"]`);
   }
 }
 
@@ -54,7 +54,7 @@ export class SelectorLocatorStrategy implements LocatorStrategy {
   }
 
   async locate(query: LocatorQuery, ctx: any): Promise<Locator | null> {
-    if (!query.selector) return null;
+    if (!query.selector || !ctx.page) return null;
     const locator = ctx.page.locator(query.selector);
     if ((await locator.count()) > 0) {
       return locator.first();
@@ -73,7 +73,7 @@ export class TextLocatorStrategy implements LocatorStrategy {
   }
 
   async locate(query: LocatorQuery, ctx: any): Promise<Locator | null> {
-    if (!query.text) return null;
+    if (!query.text || !ctx.page) return null;
 
     // 精确文本匹配：先在交互元素中查找
     const interactiveSelector =
@@ -112,7 +112,7 @@ export class SemanticLocatorStrategy implements LocatorStrategy {
   }
 
   async locate(query: LocatorQuery, ctx: any): Promise<Locator | null> {
-    if (!query.semantic || !this.resolver) return null;
+    if (!query.semantic || !this.resolver || !ctx.page) return null;
 
     const resolved = await this.resolver(query.semantic);
     if (!resolved) return null;
@@ -238,7 +238,7 @@ export class PlaywrightLocatorPlugin implements LocatorPlugin {
     try {
       const selector = await locator.evaluate((el: Element) => {
         // 生成稳定的 CSS 选择器
-        let path = [];
+        const path: string[] = [];
         let current: Element | null = el;
 
         while (current && current.nodeType === 1) {
@@ -250,9 +250,11 @@ export class PlaywrightLocatorPlugin implements LocatorPlugin {
             break;
           }
 
-          const parent = current.parentElement;
-          if (parent) {
-            const siblings = Array.from(parent.children).filter((s) => s.nodeName === current!.nodeName);
+          const parentElement: Element | null = current.parentElement;
+          if (parentElement) {
+            const siblings: Element[] = Array.from(parentElement.children).filter((s: Element) => {
+              return s.nodeName === current!.nodeName;
+            });
             if (siblings.length > 1) {
               const index = siblings.indexOf(current) + 1;
               selector += `:nth-of-type(${index})`;
@@ -260,7 +262,7 @@ export class PlaywrightLocatorPlugin implements LocatorPlugin {
           }
 
           path.unshift(selector);
-          current = parent;
+          current = parentElement;
         }
 
         return path.join(" > ");

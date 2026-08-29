@@ -44,14 +44,45 @@ export class PlaywrightDiagnosticsPlugin implements DiagnosticsPlugin {
     }
 
     try {
-      const report = await this.diagnostics.diagnose();
+      // 收集所有采集器的数据
+      const collectors = this.diagnostics.collectors();
+      const consoleDiags: DiagnosticRef[] = [];
+      const networkDiags: DiagnosticRef[] = [];
+      const domDiags: DiagnosticRef[] = [];
+      const performanceDiags: DiagnosticRef[] = [];
+      const jsExceptionDiags: DiagnosticRef[] = [];
+
+      for (const collector of collectors) {
+        const refs = await collector.collect();
+        // 根据采集器名称分类
+        for (const ref of refs) {
+          switch (ref.kind) {
+            case "console":
+              consoleDiags.push(ref);
+              break;
+            case "network":
+              networkDiags.push(ref);
+              break;
+            case "dom":
+              domDiags.push(ref);
+              break;
+            case "performance":
+              performanceDiags.push(ref);
+              break;
+            case "js-exception":
+              jsExceptionDiags.push(ref);
+              break;
+          }
+        }
+      }
+
       return {
-        console: report.console || [],
-        network: report.network || [],
-        dom: report.dom || [],
-        performance: report.performance || [],
-        jsExceptions: report.jsExceptions || [],
-        accessibility: report.accessibility || [],
+        console: consoleDiags,
+        network: networkDiags,
+        dom: domDiags,
+        performance: performanceDiags,
+        jsExceptions: jsExceptionDiags,
+        accessibility: [],
       };
     } catch (err) {
       throw new Error(`诊断采集失败: ${err instanceof Error ? err.message : String(err)}`);
@@ -63,7 +94,7 @@ export class PlaywrightDiagnosticsPlugin implements DiagnosticsPlugin {
       throw new Error("诊断采集插件未初始化");
     }
 
-    return this.diagnostics.collectConsole();
+    return this.diagnostics.console.collect();
   }
 
   async collectNetwork(): Promise<DiagnosticRef[]> {
@@ -71,12 +102,11 @@ export class PlaywrightDiagnosticsPlugin implements DiagnosticsPlugin {
       throw new Error("诊断采集插件未初始化");
     }
 
-    return this.diagnostics.collectNetwork();
+    return this.diagnostics.network.collect();
   }
 
   async cleanup?(): Promise<void> {
-    if (this.diagnostics) {
-      await this.diagnostics.cleanup?.();
-    }
+    // 清理资源（如果需要）
+    this.diagnostics = undefined;
   }
 }

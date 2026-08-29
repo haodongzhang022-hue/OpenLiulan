@@ -2,6 +2,7 @@ export * from "./locator.js";
 export * from "./snapshot.js";
 export * from "./diagnostics.js";
 export * from "./playwright-engine.js";
+export * from "./playwright-engine-v2.js";
 export * from "./action-executor-plugin.js";
 export * from "./locator-plugin.js";
 export * from "./snapshot-plugin.js";
