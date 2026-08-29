@@ -26,8 +26,7 @@
     "prepack": "node scripts/build-plugin.mjs",
     "test": "vitest run",
     "lint": "npm run lint --workspaces --if-present",
-    "dev": "node examples/quickstart.mjs",
-    "prepare": "node scripts/build-plugin.mjs"
+    "dev": "node examples/quickstart.mjs"
   },
   "keywords": [
     "browser-automation",
