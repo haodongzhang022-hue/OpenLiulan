@@ -101,13 +101,20 @@ export class PlaywrightEngineV2 implements BrowserEngine {
     }
 
     // 创建上下文
-    const ctxOptions: Partial<BrowserContextOptions> & { initScript?: string } = { viewport: this.options.viewport };
-    if (this.stealth?.isEnabled) {
-      const initScript = this.stealth.buildInitScript();
-      if (initScript) ctxOptions.initScript = initScript;
-      if (this.stealth.options.userAgent) ctxOptions.userAgent = this.stealth.options.userAgent;
+    const ctxOptions: Partial<BrowserContextOptions> = { viewport: this.options.viewport };
+    if (this.stealth?.isEnabled && this.stealth.options.userAgent) {
+      ctxOptions.userAgent = this.stealth.options.userAgent;
     }
     this.context = this.browser.contexts()[0] || (await this.browser.newContext(ctxOptions as BrowserContextOptions));
+    
+    // 在创建上下文后注入 initScript（BrowserContextOptions 不支持 initScript）
+    if (this.stealth?.isEnabled) {
+      const initScript = this.stealth.buildInitScript();
+      if (initScript) {
+        await this.context.addInitScript(initScript);
+      }
+    }
+    
     this.page = this.context.pages()[0] || (await this.context.newPage());
 
     // 创建插件上下文

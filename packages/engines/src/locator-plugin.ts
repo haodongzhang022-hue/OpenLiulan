@@ -29,7 +29,7 @@ export class RefLocatorStrategy implements LocatorStrategy {
     return !!query.ref;
   }
 
-  async locate(query: LocatorQuery, ctx: any): Promise<Locator | null> {
+  async locate(query: LocatorQuery, ctx: EnginePluginContext): Promise<Locator | null> {
     if (!query.ref || !ctx.page) return null;
     const locator = this.locateByRef(query.ref, ctx.page);
     if ((await locator.count()) > 0) {
@@ -53,7 +53,7 @@ export class SelectorLocatorStrategy implements LocatorStrategy {
     return !!query.selector;
   }
 
-  async locate(query: LocatorQuery, ctx: any): Promise<Locator | null> {
+  async locate(query: LocatorQuery, ctx: EnginePluginContext): Promise<Locator | null> {
     if (!query.selector || !ctx.page) return null;
     const locator = ctx.page.locator(query.selector);
     if ((await locator.count()) > 0) {
@@ -72,7 +72,7 @@ export class TextLocatorStrategy implements LocatorStrategy {
     return !!query.text;
   }
 
-  async locate(query: LocatorQuery, ctx: any): Promise<Locator | null> {
+  async locate(query: LocatorQuery, ctx: EnginePluginContext): Promise<Locator | null> {
     if (!query.text || !ctx.page) return null;
 
     // 精确文本匹配：先在交互元素中查找
@@ -111,7 +111,7 @@ export class SemanticLocatorStrategy implements LocatorStrategy {
     return this;
   }
 
-  async locate(query: LocatorQuery, ctx: any): Promise<Locator | null> {
+  async locate(query: LocatorQuery, ctx: EnginePluginContext): Promise<Locator | null> {
     if (!query.semantic || !this.resolver || !ctx.page) return null;
 
     const resolved = await this.resolver(query.semantic);
